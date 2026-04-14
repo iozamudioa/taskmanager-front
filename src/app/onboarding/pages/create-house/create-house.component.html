@@ -1,0 +1,31 @@
+<div class="page-wrapper">
+    <button class="back-btn" (click)="goBack()">← Volver</button>
+
+    <div class="header">
+        <div class="step-badge">Paso 2 de 2</div>
+        <h2 class="page-title">Crea tu casa</h2>
+        @if (currentUser) {
+        <p class="page-subtitle">Hola <strong>{{ currentUser.name }}</strong>, ponle nombre a tu hogar.</p>
+        }
+    </div>
+
+    <form class="form" (ngSubmit)="submit()">
+        <div class="field">
+            <label class="label" for="houseName">Nombre de la casa</label>
+            <input id="houseName" class="input" type="text" placeholder="Ej. Casa Familia García"
+                [(ngModel)]="houseName" name="houseName" required autocomplete="off" />
+        </div>
+
+        @if (error()) {
+        <p class="error-msg">{{ error() }}</p>
+        }
+
+        <button class="btn-submit" type="submit" [disabled]="loading()">
+            @if (loading()) {
+            <span class="spinner"></span> Creando...
+            } @else {
+            Crear casa 🏠
+            }
+        </button>
+    </form>
+</div>

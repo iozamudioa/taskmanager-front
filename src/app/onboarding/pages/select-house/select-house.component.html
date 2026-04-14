@@ -1,0 +1,34 @@
+<div class="select-house-container">
+    <div class="header">
+        <h1>Selecciona una Casa</h1>
+        <p>Elige la casa que deseas abrir</p>
+    </div>
+
+    <ng-container *ngIf="vm$ | async as vm">
+        <div *ngIf="vm.loading" class="loading">
+            <div class="spinner"></div>
+            <p>Cargando casas...</p>
+        </div>
+
+        <div *ngIf="vm.error && !vm.loading" class="error">
+            <p>{{ vm.error }}</p>
+            <div class="error-actions">
+                <button class="btn-retry" (click)="loadHouses()">Reintentar</button>
+                <button class="btn-back" (click)="goBack()">Volver</button>
+            </div>
+        </div>
+
+        <div *ngIf="!vm.loading && !vm.error && vm.houses.length === 0" class="empty">
+            <p>No hay casas disponibles.</p>
+            <button class="btn-back" (click)="goBack()">Volver</button>
+        </div>
+
+        <div *ngIf="!vm.loading && !vm.error && vm.houses.length > 0" class="houses-grid">
+            <div *ngFor="let house of vm.houses; trackBy: trackByHouse" class="house-card" (click)="selectHouse(house)">
+                <div class="house-icon">🏠</div>
+                <h3>{{ house.name }}</h3>
+                <p class="house-code">Código: {{ house.code }}</p>
+            </div>
+        </div>
+    </ng-container>
+</div>

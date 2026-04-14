@@ -1,1 +1,49 @@
-/* You can add global styles to this file, and also import other style files */
+/* Global reset & base styles */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: #fafafa;
+    color: #1a1a2e;
+}
+
+.tm-color-cancel-btn,
+.tm-color-ok-btn {
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 10px;
+    font-size: 0.84rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.tm-color-cancel-btn {
+    border: 1.5px solid #e5e7eb;
+    background: #ffffff;
+    color: #6b7280;
+}
+
+.tm-color-cancel-btn:hover {
+    background: #f9fafb;
+}
+
+.tm-color-ok-btn {
+    border: none;
+    background: #6c63ff;
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(108, 99, 255, 0.35);
+}
+
+.tm-color-ok-btn:hover {
+    opacity: 0.92;
+}

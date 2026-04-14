@@ -1,0 +1,33 @@
+<div class="hourly-list">
+    <div class="refresh-bar">
+        <button class="refresh-btn" (click)="refresh()" title="Actualizar">
+            🔄
+        </button>
+        <span class="refresh-hint">Actualizado en tiempo real</span>
+    </div>
+
+    @if (timeSlots.length === 0 || (timeSlots.length === 1 && timeSlots[0].tasks.length === 0)) {
+    <div class="empty-state">
+        <div class="empty-icon">📅</div>
+        <h3 class="empty-title">Sin tareas</h3>
+        <p class="empty-subtitle">No hay tareas programadas para hoy.</p>
+    </div>
+    } @else {
+    <div class="time-slots">
+        @for (slot of timeSlots; track trackByHour($index, slot)) {
+        <div class="time-slot">
+            <div class="time-header">
+                <span class="time-badge">{{ slot.time }}</span>
+                <span class="task-count">{{ slot.tasks.length }} tarea(s)</span>
+            </div>
+
+            <div class="tasks-in-slot">
+                @for (task of slot.tasks; track trackByTask($index, task)) {
+                <app-task-card [task]="task" [isAdmin]="isAdmin" (onCompleted)="refresh()" />
+                }
+            </div>
+        </div>
+        }
+    </div>
+    }
+</div>

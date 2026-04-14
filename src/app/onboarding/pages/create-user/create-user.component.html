@@ -1,0 +1,43 @@
+<div class="page-wrapper">
+    <button class="back-btn" (click)="goBack()">← Volver</button>
+
+    <div class="header">
+        <div class="step-badge">Paso 1 de 2</div>
+        <h2 class="page-title">Crea tu perfil</h2>
+        <p class="page-subtitle">Cuéntanos un poco sobre ti para empezar.</p>
+    </div>
+
+    <form class="form" (ngSubmit)="submit()" #f="ngForm">
+
+        <div class="field">
+            <label class="label" for="name">Nombre completo</label>
+            <input id="name" class="input" type="text" placeholder="Ej. Juan Pérez" [(ngModel)]="form.name" name="name"
+                required autocomplete="name" />
+        </div>
+
+        <div class="field">
+            <label class="label" for="username">Nombre de usuario</label>
+            <input id="username" class="input" type="text" placeholder="Ej. juan123" [(ngModel)]="form.username"
+                name="username" required autocomplete="username" />
+        </div>
+
+        <div class="field">
+            <label class="label" for="email">Correo electrónico</label>
+            <input id="email" class="input" type="email" placeholder="Ej. juan@email.com" [(ngModel)]="form.email"
+                name="email" required autocomplete="email" />
+        </div>
+
+        @if (error()) {
+        <p class="error-msg">{{ error() }}</p>
+        }
+
+        <button class="btn-submit" type="submit" [disabled]="loading()">
+            @if (loading()) {
+            <span class="spinner"></span> Creando...
+            } @else {
+            Continuar →
+            }
+        </button>
+
+    </form>
+</div>

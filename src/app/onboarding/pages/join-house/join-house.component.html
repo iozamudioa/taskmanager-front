@@ -1,0 +1,34 @@
+<div class="page-wrapper">
+    <button class="back-btn" (click)="goBack()">← Volver</button>
+
+    <div class="header">
+        <div class="code-icon">🔑</div>
+        <h2 class="page-title">Únete a una casa</h2>
+        @if (currentUser) {
+        <p class="page-subtitle">
+            Hola <strong>{{ currentUser.name }}</strong>, ingresa el código que te compartieron.
+        </p>
+        }
+    </div>
+
+    <form class="form" (ngSubmit)="submit()">
+        <div class="field">
+            <label class="label" for="code">Código de la casa</label>
+            <input id="code" class="input input-code" type="text" placeholder="Ej. ABC123" [(ngModel)]="code"
+                name="code" required autocomplete="off" maxlength="12" />
+            <span class="hint">El código lo comparte el propietario de la casa.</span>
+        </div>
+
+        @if (error()) {
+        <p class="error-msg">{{ error() }}</p>
+        }
+
+        <button class="btn-submit" type="submit" [disabled]="loading()">
+            @if (loading()) {
+            <span class="spinner"></span> Uniéndome...
+            } @else {
+            Unirme a la casa →
+            }
+        </button>
+    </form>
+</div>

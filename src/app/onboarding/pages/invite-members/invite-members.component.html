@@ -1,0 +1,84 @@
+<div class="page-wrapper">
+    <div class="header">
+        <div class="success-badge">✅ Casa creada</div>
+        <h2 class="page-title">{{ house?.name }}</h2>
+        <p class="page-subtitle">Comparte el código con tus convivientes para que se unan.</p>
+    </div>
+
+    <!-- House Code -->
+    <div class="code-card">
+        <span class="code-label">Código de la casa</span>
+        <span class="code-value">{{ house?.code }}</span>
+        <button class="copy-btn" (click)="copyCode()" [class.copied]="copied()">
+            {{ copied() ? '✓ Copiado' : 'Copiar' }}
+        </button>
+    </div>
+
+    <!-- Members list -->
+    <div class="section">
+        <div class="section-header">
+            <h3 class="section-title">Miembros ({{ members().length }})</h3>
+            @if (!addingMember()) {
+            <button class="add-btn" (click)="showAddForm()">+ Crear miembro</button>
+            }
+        </div>
+
+        <ul class="member-list">
+            @for (member of members(); track member.id) {
+            <li class="member-item">
+                <div class="member-avatar">{{ member.userId }}</div>
+                <div class="member-info">
+                    <span class="member-id">ID: {{ member.userId }}</span>
+                    <span class="member-role" [class.role-owner]="member.roleId === 1"
+                        [class.role-admin]="member.roleId === 2">
+                        {{ member.roleId === 1 ? 'Propietario' : member.roleId === 2 ? 'Admin' : 'Miembro' }}
+                    </span>
+                </div>
+            </li>
+            }
+        </ul>
+
+        <!-- Add member form -->
+        @if (addingMember()) {
+        <div class="add-form">
+            <h4 class="add-form-title">Nuevo miembro</h4>
+
+            <div class="field">
+                <label class="label">Nombre</label>
+                <input class="input" type="text" placeholder="Nombre completo" [(ngModel)]="newMemberForm.name"
+                    name="mName" />
+            </div>
+            <div class="field">
+                <label class="label">Usuario</label>
+                <input class="input" type="text" placeholder="username" [(ngModel)]="newMemberForm.username"
+                    name="mUsername" />
+            </div>
+            <div class="field">
+                <label class="label">Email</label>
+                <input class="input" type="email" placeholder="correo@email.com" [(ngModel)]="newMemberForm.email"
+                    name="mEmail" />
+            </div>
+
+            @if (formError()) {
+            <p class="error-msg">{{ formError() }}</p>
+            }
+
+            <div class="add-form-actions">
+                <button class="btn-cancel" (click)="cancelAdd()">Cancelar</button>
+                <button class="btn-save" (click)="saveNewMember()" [disabled]="savingNewMember()">
+                    @if (savingNewMember()) {
+                    <span class="spinner"></span>
+                    } @else {
+                    Agregar
+                    }
+                </button>
+            </div>
+        </div>
+        }
+    </div>
+
+    <div class="footer-actions">
+        <button class="btn-finish" (click)="finish()">Ir al inicio →</button>
+        <p class="skip-hint">Puedes agregar miembros más adelante desde la configuración.</p>
+    </div>
+</div>

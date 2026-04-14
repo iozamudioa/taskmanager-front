@@ -1,0 +1,44 @@
+<div class="select-user-container">
+    <div class="header">
+        <h1>Selecciona un Usuario</h1>
+        <p *ngIf="currentHouse" class="house-name">Casa: <strong>{{ currentHouse.name }}</strong></p>
+    </div>
+
+    <ng-container *ngIf="vm$ | async as vm">
+        <div *ngIf="vm.loading" class="loading">
+            <div class="spinner"></div>
+            <p>Cargando usuarios...</p>
+        </div>
+
+        <div *ngIf="vm.error && !vm.loading" class="error">
+            <p>{{ vm.error }}</p>
+            <div class="error-actions">
+                <button class="btn-retry" (click)="loadMembers()">Reintentar</button>
+                <button class="btn-back" (click)="goBack()">Volver</button>
+            </div>
+        </div>
+
+        <div *ngIf="!vm.loading && !vm.error && vm.users.length === 0" class="empty">
+            <p>No hay usuarios en esta casa.</p>
+            <button class="btn-back" (click)="goBack()">Volver</button>
+        </div>
+
+        <div *ngIf="!vm.loading && !vm.error && vm.users.length > 0" class="members-grid">
+            <div *ngFor="let member of vm.users; trackBy: trackByUser" class="user-card" (click)="selectUser(member)">
+                <div class="user-avatar">
+                    <ng-container *ngIf="member.user.image; else defaultAvatar">
+                        <img class="user-avatar-image" [src]="member.user.image" [alt]="getUserDisplayName(member)" />
+                    </ng-container>
+                    <ng-template #defaultAvatar>
+                        {{ getUserInitial(member) }}
+                    </ng-template>
+                </div>
+                <h3>{{ getUserDisplayName(member) }}</h3>
+                <p class="username">@{{ getUserUsername(member) }}</p>
+                <span class="role-badge" [ngClass]="'role-' + member.roleId">
+                    {{ getRoleName(member.roleId) }}
+                </span>
+            </div>
+        </div>
+    </ng-container>
+</div>

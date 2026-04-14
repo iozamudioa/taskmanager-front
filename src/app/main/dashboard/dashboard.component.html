@@ -1,0 +1,610 @@
+<div class="dashboard-wrapper">
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div class="header-top">
+            <div class="header-avatar" (click)="openProfileModal()" title="Editar mi perfil" role="button"
+                tabindex="0" (keydown.enter)="openProfileModal()" (keydown.space)="openProfileModal()">
+                @if (getCurrentUserImage()) {
+                <img [src]="getCurrentUserImage()" alt="Avatar de perfil" class="header-avatar-image" />
+                } @else {
+                <span class="header-avatar-fallback">{{ getCurrentUserInitial() }}</span>
+                }
+            </div>
+            <div class="house-info">
+                <h1 class="house-name">{{ currentHouse?.name }} 🏠</h1>
+                <p class="header-date">{{ formatDate(selectedDate()) }}</p>
+                <div class="session-indicator" title="Usuario con sesión activa en esta pantalla">
+                    <span class="session-label">Sesión:</span>
+                    <span class="session-user">{{ getCurrentSessionLabel() }}</span>
+                    <span class="session-role">{{ getCurrentUserRoleLabel() }}</span>
+                    <span class="session-points" [class.points-bump]="pointsPulse()" title="Puntos de hoy">
+                        ⭐ Hoy: <strong>{{ getTodayPoints() }}</strong>
+                    </span>
+                    <span class="session-points month" [class.points-bump]="pointsPulse()" title="Puntos del mes">
+                        🏆 Mes: <strong>{{ getMonthPoints() }}</strong>
+                    </span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="btn-logout" (click)="logout()" title="Cerrar sesión">↪️</button>
+            </div>
+        </div>
+
+        <!-- User filter tabs -->
+        <div class="user-tabs">
+            @if (isOwner) {
+            <button class="user-tab" [class.active]="false" (click)="openMembersModal()"
+                title="Gestionar usuarios de la casa">
+                👥
+            </button>
+            }
+            @if (isAdmin) {
+            <button class="user-tab" [class.active]="!selectedUserId()" (click)="selectUser(null)">
+                Todas las tareas
+            </button>
+            @for (member of houseUsers(); track trackByHouseUser($index, member)) {
+            <button class="user-tab" [class.active]="selectedUserId() === member.userId"
+                (click)="selectUser(member.userId)">
+                @{{ member.user.username }}
+            </button>
+            }
+            } @else {
+            <button class="user-tab active" type="button">
+                Mis tareas (@{{ getCurrentUsername() }})
+            </button>
+            }
+        </div>
+    </header>
+
+    <!-- Main content -->
+    <main class="dashboard-main">
+        @if (loading()) {
+        <div class="loading">
+            <div class="spinner"></div>
+            <p>Cargando tareas...</p>
+        </div>
+        } @else if (error()) {
+        <div class="error">
+            <p>{{ error() }}</p>
+            <button (click)="loadDashboard()">Intentar de nuevo</button>
+        </div>
+        } @else {
+        <div class="hourly-list">
+            <div class="refresh-bar">
+                <button class="refresh-btn" (click)="loadDashboard()" title="Actualizar">🔄</button>
+                <span class="refresh-hint">Actualizado en tiempo real</span>
+            </div>
+
+            @if (timeSlots.length === 0 || (timeSlots.length === 1 && timeSlots[0].tasks.length === 0)) {
+            <div class="empty-state">
+                <div class="empty-icon">📅</div>
+                <h3 class="empty-title">Sin tareas</h3>
+                <p class="empty-subtitle">No hay tareas programadas para hoy.</p>
+            </div>
+            } @else {
+            <div class="time-slots">
+                @for (slot of timeSlots; track trackByHour($index, slot)) {
+                <div class="time-slot">
+                    <div class="time-header">
+                        <span class="time-badge">{{ slot.time }}</span>
+                        <span class="task-count">{{ slot.tasks.length }} tarea(s)</span>
+                    </div>
+
+                    <div class="tasks-in-slot">
+                        @for (task of slot.tasks; track trackByTask($index, task)) {
+                        <div class="task-card" [class.completed]="task.completed" [class.has-image]="!!task.image">
+                            <div class="card-visual" [ngStyle]="getTaskBackgroundColor(task)">
+                                @if (task.image) {
+                                <img [src]="task.image" [alt]="task.title" class="card-image" />
+                                } @else {
+                                <div class="card-color-indicator"></div>
+                                }
+                            </div>
+
+                            <div class="card-content">
+                                <div class="card-header">
+                                    <h4 class="card-title" [class.completed-text]="task.completed">{{ task.title }}</h4>
+                                    @if (task.priority) {
+                                    <span class="priority-badge" [class]="'priority-' + task.priority">P{{ task.priority
+                                        }}</span>
+                                    }
+                                </div>
+
+                                @if (task.description) {
+                                <p class="card-description">{{ task.description }}</p>
+                                }
+
+                                <div class="card-meta">
+                                    <span class="meta-item">⏰ {{ getFormattedTaskTime(task) }}</span>
+                                    @if (task.assignedTo && task.assignedTo > 0) {
+                                    <span class="meta-item assigned">👤 @{{ getAssignedUserLabel(task.assignedTo)
+                                        }}</span>
+                                    }
+                                    @if (task.pointsReward) {
+                                    <span class="meta-item">⭐ {{ task.pointsReward }}pts</span>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="card-actions">
+                                @if (isAdmin) {
+                                <button class="card-action-btn btn-edit" (click)="openEditModal(task)"
+                                    title="Editar tarea">
+                                    ✏️
+                                </button>
+                                <button class="card-action-btn btn-clone" (click)="openCloneModal(task)"
+                                    title="Clonar tarea">
+                                    ⧉
+                                </button>
+                                <button class="card-action-btn btn-delete" (click)="deleteTask(task)"
+                                    [disabled]="isTaskDeleting(task.taskId)" title="Eliminar tarea">
+                                    @if (isTaskDeleting(task.taskId)) {
+                                    <span class="mini-spinner"></span>
+                                    } @else {
+                                    🗑
+                                    }
+                                </button>
+                                }
+                                @if (canCompleteTask(task)) {
+                                <button class="card-action-btn btn-complete" [class.completed]="task.completed"
+                                    (click)="toggleTaskComplete(task)" [disabled]="isTaskLoading(task.id)"
+                                    title="Marcar como completada">
+                                    @if (isTaskLoading(task.id)) {
+                                    <span class="mini-spinner"></span>
+                                    } @else {
+                                    {{ task.completed ? '✓' : '○' }}
+                                    }
+                                </button>
+                                }
+                            </div>
+
+                        </div>
+                        }
+                    </div>
+                </div>
+                }
+            </div>
+            }
+        </div>
+        }
+    </main>
+
+    <!-- Floating action button to create task -->
+    @if (isAdmin) {
+    <button class="fab-create-task" (click)="openCreateModal()" title="Crear nueva tarea">
+        ➕
+    </button>
+    }
+
+    @if (showScreenFireworks()) {
+    <div class="screen-fireworks" aria-hidden="true">
+        @for (particle of screenFireworks(); track $index) {
+        <span class="fw-particle" [style.--x]="particle.x + '%'" [style.--y]="particle.y + '%'"
+            [style.--dx]="particle.dx + 'px'" [style.--dy]="particle.dy + 'px'" [style.--h]="particle.hue"
+            [style.animationDelay]="particle.delay + 'ms'"></span>
+        }
+    </div>
+    }
+
+    @if (showAlertModal()) {
+    <div class="modal-backdrop centered" (click)="closeAlertModal()">
+        <div class="modal-content alert-modal" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+                <h2 class="modal-title">{{ alertModalTitle() }}</h2>
+                <button class="modal-close" (click)="closeAlertModal()">×</button>
+            </div>
+
+            <div class="modal-form alert-modal-body">
+                <p class="alert-message">{{ alertModalMessage() }}</p>
+
+                <div class="modal-actions">
+                    @if (!alertModalConfirmOnly()) {
+                    <button class="btn-cancel" type="button" (click)="closeAlertModal()">{{ alertModalCancelText()
+                        }}</button>
+                    }
+                    <button class="btn-submit" type="button" [class.btn-danger]="!alertModalConfirmOnly()"
+                        (click)="confirmAlertModal()">
+                        {{ alertModalConfirmText() }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    }
+
+    @if (showProfileModal()) {
+    <div class="modal-backdrop" (click)="closeProfileModal()">
+        <div class="modal-content profile-modal" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+                <h2 class="modal-title">Editar mi perfil</h2>
+                <button class="modal-close" (click)="closeProfileModal()">×</button>
+            </div>
+
+            <form class="modal-form" (ngSubmit)="saveProfile()">
+                <div class="field profile-image-block">
+                    <label class="label">Foto de perfil</label>
+
+                    @if (profileForm.image || getCurrentUserImage()) {
+                    <div class="profile-preview-wrap">
+                        <img [src]="profileForm.image || getCurrentUserImage()" alt="Perfil" class="profile-preview" />
+                    </div>
+                    }
+
+                    <div class="image-actions">
+                        <button type="button" class="btn-image" (click)="profileGalleryInput.click()">🖼️ Elegir
+                            imagen</button>
+                        <button type="button" class="btn-image" (click)="profileCameraInput.click()">📷 Abrir
+                            cámara</button>
+                    </div>
+
+                    <input #profileGalleryInput type="file" accept="image/*" class="hidden-file"
+                        (change)="onProfileGalleryImageSelected($event)" />
+                    <input #profileCameraInput type="file" accept="image/*" capture="environment" class="hidden-file"
+                        (change)="onProfileCameraImageSelected($event)" />
+
+                    @if (profileImageFile()) {
+                    <div class="profile-cropper-wrap">
+                        <image-cropper [imageFile]="profileImageFile()" [maintainAspectRatio]="true"
+                            [aspectRatio]="1 / 1" [resizeToWidth]="720" [onlyScaleDown]="true" format="jpeg"
+                            [imageQuality]="80" (imageCropped)="onProfileImageCropped($event)"
+                            (loadImageFailed)="onProfileImageLoadFailed()">
+                        </image-cropper>
+                    </div>
+                    <p class="cropper-hint">Ajusta el recorte para definir tu foto de perfil.</p>
+                    }
+
+                    @if (profileForm.image || getCurrentUserImage()) {
+                    <button type="button" class="btn-remove-image" (click)="clearProfileImage()">Quitar imagen</button>
+                    }
+                </div>
+
+                <div class="field">
+                    <label class="label" for="profileName">Nombre *</label>
+                    <input id="profileName" class="input" type="text" [(ngModel)]="profileForm.name" name="profileName"
+                        required autocomplete="off" />
+                </div>
+
+                @if (profileError()) {
+                <p class="error-msg">{{ profileError() }}</p>
+                }
+
+                <div class="modal-actions">
+                    <button class="btn-cancel" type="button" (click)="closeProfileModal()">Cancelar</button>
+                    <button class="btn-submit" type="submit" [disabled]="savingProfile()">
+                        @if (savingProfile()) {
+                        <span class="spinner"></span> Guardando...
+                        } @else {
+                        Guardar perfil
+                        }
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    }
+
+    <!-- Members Management Modal -->
+    @if (showMembersModal()) {
+    <div class="modal-backdrop" (click)="closeMembersModal()">
+        <div class="modal-content members-modal" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+                <h2 class="modal-title">Gestionar Usuarios</h2>
+                <button class="modal-close" (click)="closeMembersModal()">×</button>
+            </div>
+
+            <div class="members-list-container">
+                <!-- Current members section -->
+                <div class="members-section">
+                    <h3 class="section-title">Miembros Actuales</h3>
+                    @if (houseUsers().length === 0) {
+                    <p class="empty-message">No hay miembros en la casa.</p>
+                    } @else {
+                    <div class="members-grid">
+                        @for (member of houseUsers(); track trackByHouseUser($index, member)) {
+                        <div class="member-row">
+                            <div class="member-info">
+                                <span class="member-name">{{ member.user.username }}</span>
+                                <span class="member-email">{{ member.user.email }}</span>
+                            </div>
+
+                            @if (updatingMemberId() === member.id) {
+                            <div class="member-edit-actions">
+                                <select class="role-select" [(ngModel)]="managingRoleId" name="role">
+                                    <option [value]="1">Propietario</option>
+                                    <option [value]="2">Admin</option>
+                                    <option [value]="3">Miembro</option>
+                                </select>
+                                <button class="btn-confirm" (click)="updateMemberRole(currentHouse!.id, member.userId)">
+                                    Guardar
+                                </button>
+                                <button class="btn-cancel-sm" (click)="cancelEditingMember()">Cancelar</button>
+                            </div>
+                            } @else {
+                            <div class="member-actions">
+                                <span class="member-role">{{ getRoleLabel(member.roleId) }}</span>
+                                <button class="btn-edit-role"
+                                    (click)="startEditingMemberRole(member.id, member.roleId)">
+                                    Editar
+                                </button>
+                                <button class="btn-remove" (click)="removeMember(currentHouse!.id, member.userId)">
+                                    Eliminar
+                                </button>
+                            </div>
+                            }
+                        </div>
+                        }
+                    </div>
+                    }
+                </div>
+
+                <!-- Add new member section -->
+                <div class="members-section add-member-section">
+                    <h3 class="section-title">Agregar Usuario Existente</h3>
+                    <div class="search-box">
+                        <input type="text" class="search-input" placeholder="Buscar por nombre o email..."
+                            [(ngModel)]="searchQuery" (ngModelChange)="searchUsersToAdd()" name="searchQuery"
+                            autocomplete="off" />
+                        @if (searching()) {
+                        <span class="search-spinner">🔍</span>
+                        }
+                    </div>
+
+                    @if (searchResults().length > 0) {
+                    <div class="search-results">
+                        @for (user of searchResults(); track user.id) {
+                        <div class="search-result-item">
+                            <div class="result-info">
+                                <span class="result-username">{{ user.username }}</span>
+                                <span class="result-email">{{ user.email }}</span>
+                            </div>
+                            <div class="result-actions">
+                                <select class="role-select-sm" #roleSelect>
+                                    <option [value]="2">Admin</option>
+                                    <option [value]="3">Miembro</option>
+                                </select>
+                                <button class="btn-add" (click)="addUserToHouse(user.id, +roleSelect.value)">
+                                    Agregar
+                                </button>
+                            </div>
+                        </div>
+                        }
+                    </div>
+                    } @else if (hasSearchMinLength() && !searching()) {
+                    <p class="no-results">No se encontraron usuarios.</p>
+                    }
+
+                    @if (!showCreateUserForm()) {
+                    <button class="btn-create-user-toggle" (click)="openCreateUserForm()">
+                        ➕ Crear nuevo usuario
+                    </button>
+                    }
+                </div>
+
+                <!-- Create new user form section -->
+                @if (showCreateUserForm()) {
+                <div class="members-section create-user-section">
+                    <div class="create-user-header">
+                        <h3 class="section-title">Crear Nuevo Usuario</h3>
+                        <button class="close-create-form" (click)="closeCreateUserForm()">×</button>
+                    </div>
+
+                    @if (createUserError()) {
+                    <div class="error-message">{{ createUserError() }}</div>
+                    }
+
+                    <div class="form-group">
+                        <label class="form-label" for="new-user-name">Nombre Completo *</label>
+                        <input id="new-user-name" class="form-input" type="text" placeholder="Ej. Juan Pérez"
+                            [(ngModel)]="newUserForm().name" name="newUserName" />
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="new-user-email">Email *</label>
+                        <input id="new-user-email" class="form-input" type="email" placeholder="ejemplo@correo.com"
+                            [(ngModel)]="newUserForm().email" name="newUserEmail" />
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="new-user-username">Nombre de Usuario *</label>
+                        <input id="new-user-username" class="form-input" type="text" placeholder="usuario123"
+                            [(ngModel)]="newUserForm().username" name="newUserUsername" />
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="new-user-role">Rol en la Casa</label>
+                        <select id="new-user-role" class="role-select" [(ngModel)]="newUserForm().roleForNewHouse"
+                            name="newUserRole">
+                            <option [value]="2">Admin</option>
+                            <option [value]="3">Miembro</option>
+                        </select>
+                    </div>
+
+                    <div class="form-actions">
+                        <button class="btn-cancel-sm" type="button" (click)="closeCreateUserForm()"
+                            [disabled]="creatingNewUser()">
+                            Cancelar
+                        </button>
+                        <button class="btn-submit-form" type="button" (click)="submitNewUser()"
+                            [disabled]="creatingNewUser()">
+                            @if (creatingNewUser()) {
+                            <span class="spinner"></span> Creando...
+                            } @else {
+                            Crear Usuario ➕
+                            }
+                        </button>
+                    </div>
+                </div>
+                }
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" type="button" (click)="closeMembersModal()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+    }
+
+    <!-- Create task modal -->
+    @if (showCreateModal()) {
+    <div class="modal-backdrop" (click)="closeCreateModal()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+                <h2 class="modal-title">{{ isEditingTask() ? 'Editar tarea' : (cloningTask() ? 'Clonar tarea' : 'Nueva
+                    tarea') }}</h2>
+                <button class="modal-close" (click)="closeCreateModal()">×</button>
+            </div>
+
+            <form class="modal-form" (ngSubmit)="submitTask()">
+                <div class="field">
+                    <label class="label" for="title">Título *</label>
+                    <input id="title" class="input" type="text" placeholder="Ej. Lavar los platos"
+                        [(ngModel)]="taskForm.title" name="title" required autocomplete="off" #titleInput />
+                </div>
+
+                <div class="field">
+                    <label class="label" for="description">Descripción</label>
+                    <textarea id="description" class="input textarea" placeholder="Detalles adicionales..."
+                        [(ngModel)]="taskForm.description" name="description" rows="3"></textarea>
+                </div>
+
+                <div class="field-row">
+                    <div class="field">
+                        <label class="label" for="startDate">Fecha inicio</label>
+                        <input id="startDate" class="input" type="date" [(ngModel)]="taskForm.startDate"
+                            name="startDate" [min]="getMinTaskStartDate()" (ngModelChange)="onDateRangeChanged()" />
+                    </div>
+                    <div class="field">
+                        <label class="label" for="endDate">Fecha fin</label>
+                        <input id="endDate" class="input" type="date" [(ngModel)]="taskForm.endDate" name="endDate"
+                            [min]="getMinTaskEndDate()" (ngModelChange)="onDateRangeChanged()" />
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label class="label">Recurrente (LUN a DOM)</label>
+                    <p class="recurrence-hint">Rango actual: {{ getAllowedRangeDaysCount() }} día(s)</p>
+                    <div class="recurrence-grid">
+                        @for (day of recurrenceDays; track day) {
+                        <button type="button" class="day-chip" [class.selected]="isRecurrenceDaySelected(day)"
+                            [class.disabled]="!isRecurrenceDayEnabled(day)" [disabled]="!isRecurrenceDayEnabled(day)"
+                            (click)="toggleRecurrenceDay(day)">
+                            {{ day }}
+                        </button>
+                        }
+                    </div>
+                </div>
+
+                <div class="field-row">
+                    <div class="field">
+                        <label class="label" for="startTime">Hora de inicio</label>
+                        <input id="startTime" class="input" type="time" [(ngModel)]="taskForm.startTime"
+                            name="startTime" />
+                    </div>
+                    <div class="field">
+                        <label class="label" for="durationMinutes">Duración (min)</label>
+                        <input id="durationMinutes" class="input" type="number" min="1" max="480"
+                            [(ngModel)]="taskForm.durationMinutes" name="durationMinutes" />
+                    </div>
+                </div>
+
+                <div class="field-row">
+                    <div class="field">
+                        <label class="label" for="priority">Prioridad</label>
+                        <select class="input" id="priority" [(ngModel)]="taskForm.priority" name="priority">
+                            <option [value]="1">Alta (1)</option>
+                            <option [value]="2">Media (2)</option>
+                            <option [value]="3">Baja (3)</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label class="label" for="pointsReward">Puntos</label>
+                        <input id="pointsReward" class="input" type="number" min="0" [(ngModel)]="taskForm.pointsReward"
+                            name="pointsReward" />
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label class="label">Color</label>
+                    <div class="task-color-grid">
+                        @for (color of colors; track color) {
+                        <button type="button" class="color-swatch" [style.backgroundColor]="color"
+                            [class.selected]="taskForm.color === color" (click)="taskForm.color = color"
+                            [title]="color"></button>
+                        }
+                        <button type="button" class="color-custom-btn"
+                            [class.selected]="!colors.includes(taskForm.color || '')"
+                            [style.borderColor]="taskForm.color" [style.color]="taskForm.color"
+                            [colorPicker]="taskForm.color || '#ede9fe'"
+                            (colorPickerChange)="onCustomTaskColorChanged($event)"
+                            (colorPickerSelect)="onCustomTaskColorAccepted($event)"
+                            (colorPickerCancel)="onCustomTaskColorCanceled()"
+                            [(cpToggle)]="taskColorPickerOpen" [cpOutputFormat]="'hex'"
+                            [cpPosition]="'auto'" [cpPresetColors]="colors" [cpDialogDisplay]="'popup'"
+                            [cpOKButton]="true" [cpCancelButton]="true" [cpSaveClickOutside]="false"
+                            [cpOKButtonText]="'Aceptar'" [cpCancelButtonText]="'Cancelar'"
+                            [cpOKButtonClass]="'tm-color-ok-btn'" [cpCancelButtonClass]="'tm-color-cancel-btn'"
+                            [cpCloseClickOutside]="true" [cpUseRootViewContainer]="true">
+                            🎨 Custom color
+                        </button>
+                    </div>
+                    <div class="selected-color-preview">
+                        <span class="selected-color-circle" [style.backgroundColor]="taskForm.color || '#ede9fe'"
+                            aria-hidden="true"></span>
+                        <span class="selected-color-hex">{{ (taskForm.color || '#ede9fe') | uppercase }}</span>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label class="label">Imagen</label>
+                    <div class="image-actions">
+                        <button type="button" class="btn-image" (click)="galleryInput.click()">🖼️ Elegir
+                            imagen</button>
+                        <button type="button" class="btn-image" (click)="cameraInput.click()">📷 Abrir cámara</button>
+                    </div>
+
+                    <input #galleryInput type="file" accept="image/*" class="hidden-file"
+                        (change)="onGalleryImageSelected($event)" />
+                    <input #cameraInput type="file" accept="image/*" capture="environment" class="hidden-file"
+                        (change)="onCameraImageSelected($event)" />
+
+                    @if (taskForm.image) {
+                    <div class="image-preview-wrap">
+                        <img [src]="taskForm.image" alt="Vista previa" class="image-preview" />
+                        <button type="button" class="btn-remove-image" (click)="clearSelectedImage()">Quitar</button>
+                    </div>
+                    }
+                </div>
+
+                @if (isAdmin) {
+                <div class="field">
+                    <label class="label" for="userId">Asignar a</label>
+                    <select class="input" id="userId" [(ngModel)]="taskForm.userId" name="userId">
+                        <option [value]="0">Sin asignar</option>
+                        @for (member of houseUsers(); track trackByHouseUser($index, member)) {
+                        <option [value]="member.userId">@{{ member.user.username }}</option>
+                        }
+                    </select>
+                </div>
+                }
+
+                @if (createTaskError()) {
+                <p class="error-msg">{{ createTaskError() }}</p>
+                }
+
+                <div class="modal-actions">
+                    <button class="btn-cancel" type="button" (click)="closeCreateModal()">Cancelar</button>
+                    <button class="btn-submit" type="submit" [disabled]="creatingTask()">
+                        @if (creatingTask()) {
+                        <span class="spinner"></span> {{ isEditingTask() ? 'Guardando...' : (cloningTask() ?
+                        'Clonando...' : 'Creando...') }}
+                        } @else {
+                        {{ isEditingTask() ? 'Guardar cambios ✏️' : (cloningTask() ? 'Crear copia 📄' : 'Crear tarea ➕')
+                        }}
+                        }
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    }
+</div>

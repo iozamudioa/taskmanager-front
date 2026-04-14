@@ -1,0 +1,50 @@
+<div class="task-card" [class.completed]="task.completed">
+    <!-- Visual indicator (color or image) -->
+    <div class="card-visual" [ngStyle]="getBackgroundColor()">
+        @if (task.image) {
+        <img [src]="task.image" [alt]="task.title" class="card-image" />
+        } @else {
+        <div class="card-color-indicator"></div>
+        }
+    </div>
+
+    <!-- Content -->
+    <div class="card-content">
+        <div class="card-header">
+            <h4 class="card-title" [class.completed-text]="task.completed">
+                {{ task.title }}
+            </h4>
+            @if (task.priority) {
+            <span class="priority-badge" [class]="'priority-' + task.priority">
+                P{{ task.priority }}
+            </span>
+            }
+        </div>
+
+        @if (task.description) {
+        <p class="card-description">{{ task.description }}</p>
+        }
+
+        <div class="card-meta">
+            <span class="meta-item">⏰ {{ formattedTime }}</span>
+            @if (task.assignedTo && task.assignedTo > 0) {
+            <span class="meta-item assigned">👤 ID: {{ task.assignedTo }}</span>
+            }
+            @if (task.pointsReward) {
+            <span class="meta-item">⭐ {{ task.pointsReward }}pts</span>
+            }
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="card-actions">
+        <button class="btn-complete" [class.completed]="task.completed" (click)="toggleComplete()"
+            [disabled]="loading()" title="Marcar como completada">
+            @if (loading()) {
+            <span class="mini-spinner"></span>
+            } @else {
+            {{ task.completed ? '✓' : '○' }}
+            }
+        </button>
+    </div>
+</div>

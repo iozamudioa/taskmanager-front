@@ -1,0 +1,51 @@
+<div class="page-wrapper">
+    <button class="back-btn" (click)="goBack()">← Volver</button>
+
+    <div class="header">
+        <div class="page-icon">👤</div>
+        <h2 class="page-title">Buscar mi usuario</h2>
+        <p class="page-subtitle">Ingresa tu ID de usuario para recuperar tu cuenta y unirte a una casa.</p>
+    </div>
+
+    @if (!foundUser()) {
+    <!-- Search form -->
+    <form class="form" (ngSubmit)="search()">
+        <div class="field">
+            <label class="label" for="userId">ID de usuario</label>
+            <input id="userId" class="input input-id" type="number" min="1" placeholder="Ej. 42" [(ngModel)]="userId"
+                name="userId" required autocomplete="off" />
+            <span class="hint">El ID te lo dio el creador de la casa o está en tu perfil.</span>
+        </div>
+
+        @if (error()) {
+        <p class="error-msg">{{ error() }}</p>
+        }
+
+        <button class="btn-submit" type="submit" [disabled]="loading()">
+            @if (loading()) {
+            <span class="spinner"></span> Buscando...
+            } @else {
+            Buscar usuario →
+            }
+        </button>
+    </form>
+    } @else {
+    <!-- Found user card -->
+    <div class="user-card">
+        <div class="user-avatar">{{ foundUser()!.name.charAt(0).toUpperCase() }}</div>
+        <div class="user-details">
+            <span class="user-name">{{ foundUser()!.name }}</span>
+            <span class="user-username">&#64;{{ foundUser()!.username }}</span>
+            <span class="user-email">{{ foundUser()!.email }}</span>
+        </div>
+        <div class="check-icon">✓</div>
+    </div>
+
+    <p class="confirm-question">¿Eres tú?</p>
+
+    <div class="confirm-actions">
+        <button class="btn-no" (click)="reset()">No, buscar otro</button>
+        <button class="btn-yes" (click)="confirm()">Sí, continuar →</button>
+    </div>
+    }
+</div>

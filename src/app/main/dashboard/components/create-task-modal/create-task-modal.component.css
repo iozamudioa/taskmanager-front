@@ -1,0 +1,234 @@
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: flex-end;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 50;
+    padding: 1rem;
+}
+
+.modal-content {
+    width: 100%;
+    max-width: 480px;
+    max-height: 90dvh;
+    background: white;
+    border-radius: 20px 20px 0 0;
+    border: 1.5px solid #e5e7eb;
+    overflow-y: auto;
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem 1.5rem 1rem;
+    border-bottom: 1.5px solid #f3f4f6;
+    position: sticky;
+    top: 0;
+    background: white;
+}
+
+.modal-title {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #1a1a2e;
+    margin: 0;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.8rem;
+    cursor: pointer;
+    color: #9ca3af;
+    transition: color 0.15s;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-close:hover {
+    color: #374151;
+}
+
+/* Form */
+.modal-form {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    padding-bottom: 3rem;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #374151;
+}
+
+.input {
+    padding: 0.85rem 1rem;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    color: #1a1a2e;
+    background: white;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.input:focus {
+    border-color: #6c63ff;
+    box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.1);
+}
+
+.textarea {
+    resize: vertical;
+    font-family: inherit;
+}
+
+/* Color picker */
+.color-picker {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.6rem;
+}
+
+.color-swatch {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 10px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.color-swatch:hover {
+    transform: scale(1.08);
+}
+
+.color-swatch.selected {
+    border-color: #1a1a2e;
+    box-shadow: 0 0 0 1px white, 0 0 0 3px #1a1a2e;
+}
+
+/* Error */
+.error-msg {
+    color: #ef4444;
+    font-size: 0.875rem;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    margin: 0;
+}
+
+/* Actions */
+.modal-actions {
+    display: flex;
+    gap: 0.75rem;
+    padding-top: 0.5rem;
+}
+
+.btn-cancel {
+    flex: 1;
+    padding: 0.85rem;
+    background: white;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.btn-cancel:hover {
+    background: #f9fafb;
+}
+
+.btn-submit {
+    flex: 1.5;
+    padding: 0.85rem;
+    background: #6c63ff;
+    border: none;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 14px rgba(108, 99, 255, 0.35);
+    transition: opacity 0.15s;
+}
+
+.btn-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+    .modal-backdrop {
+        padding: 0;
+    }
+
+    .modal-content {
+        border-radius: 16px 16px 0 0;
+        max-height: 85dvh;
+    }
+
+    .field-row {
+        grid-template-columns: 1fr;
+    }
+
+    .color-picker {
+        grid-template-columns: repeat(5, 1fr);
+    }
+}

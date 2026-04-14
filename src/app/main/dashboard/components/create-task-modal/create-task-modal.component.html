@@ -1,0 +1,95 @@
+<div class="modal-backdrop" (click)="close()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+            <h2 class="modal-title">Nueva tarea</h2>
+            <button class="modal-close" (click)="close()">×</button>
+        </div>
+
+        <form class="modal-form" (ngSubmit)="submit()">
+            <!-- Title -->
+            <div class="field">
+                <label class="label" for="title">Título *</label>
+                <input id="title" class="input" type="text" placeholder="Ej. Lavar los platos" [(ngModel)]="form.title"
+                    name="title" required autocomplete="off" />
+            </div>
+
+            <!-- Description -->
+            <div class="field">
+                <label class="label" for="description">Descripción</label>
+                <textarea id="description" class="input textarea" placeholder="Detalles adicionales..."
+                    [(ngModel)]="form.description" name="description" rows="3"></textarea>
+            </div>
+
+            <!-- Time & Duration -->
+            <div class="field-row">
+                <div class="field">
+                    <label class="label" for="startTime">Hora de inicio</label>
+                    <input id="startTime" class="input" type="time" [(ngModel)]="form.startTime" name="startTime" />
+                </div>
+                <div class="field">
+                    <label class="label" for="durationMinutes">Duración (min)</label>
+                    <input id="durationMinutes" class="input" type="number" min="1" max="480"
+                        [(ngModel)]="form.durationMinutes" name="durationMinutes" />
+                </div>
+            </div>
+
+            <!-- Priority & Points -->
+            <div class="field-row">
+                <div class="field">
+                    <label class="label" for="priority">Prioridad</label>
+                    <select class="input" id="priority" [(ngModel)]="form.priority" name="priority">
+                        <option [value]="1">Alta (1)</option>
+                        <option [value]="2">Media (2)</option>
+                        <option [value]="3">Baja (3)</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label class="label" for="pointsReward">Puntos</label>
+                    <input id="pointsReward" class="input" type="number" min="0" [(ngModel)]="form.pointsReward"
+                        name="pointsReward" />
+                </div>
+            </div>
+
+            <!-- Color -->
+            <div class="field">
+                <label class="label">Color</label>
+                <div class="color-picker">
+                    @for (color of colors; track color) {
+                    <button type="button" class="color-swatch" [style.backgroundColor]="color"
+                        [class.selected]="form.color === color" (click)="form.color = color" [title]="color"></button>
+                    }
+                </div>
+            </div>
+
+            <!-- Assigned user (admin only) -->
+            @if (isAdmin) {
+            <div class="field">
+                <label class="label" for="userId">Asignar a</label>
+                <select class="input" id="userId" [(ngModel)]="form.userId" name="userId">
+                    <option [value]="0">Sin asignar</option>
+                    @for (member of members; track member.id) {
+                    <option [value]="member.userId">ID: {{ member.userId }}</option>
+                    }
+                </select>
+            </div>
+            }
+
+            <!-- Error -->
+            @if (error()) {
+            <p class="error-msg">{{ error() }}</p>
+            }
+
+            <!-- Actions -->
+            <div class="modal-actions">
+                <button class="btn-cancel" type="button" (click)="close()">Cancelar</button>
+                <button class="btn-submit" type="submit" [disabled]="loading()">
+                    @if (loading()) {
+                    <span class="spinner"></span> Creando...
+                    } @else {
+                    Crear tarea ➕
+                    }
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
