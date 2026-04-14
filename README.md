@@ -1,59 +1,83 @@
-# TaskmanagerFront
+# Task Manager Front (edición: papá ingeniero sarcástico)
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.7.
+Bienvenido al frontend que nació porque en esta casa sí había caos operativo:
 
-## Development server
+- “¿Quién tenía que lavar?”
+- “Yo pensé que era recurrente martes y jueves.”
+- “¿Por qué todos tienen 0 puntos si nadie hizo nada?”
 
-To start a local development server, run:
+Entonces sí, era necesario. Mucho.
 
-```bash
-ng serve
-```
+Este proyecto consume una API de tareas domésticas y convierte la negociación familiar en pantallas, roles, puntos, colores bonitos y decisiones trazables. Como debe ser.
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+## ¿Qué hace esta cosa?
 
-## Code scaffolding
+- Manejo de casa, usuarios y roles (Propietario, Admin, Miembro).
+- Dashboard por horario y por usuario.
+- Crear, editar, clonar y eliminar tareas.
+- Completar tareas con puntos y fuegos artificiales, porque la motivación también es arquitectura.
+- Gestión de perfil con edición de foto (incluyendo recorte).
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## Stack
 
-```bash
-ng generate component component-name
-```
+- Angular standalone components
+- Signals para estado
+- API HTTP (backend esperado en dominio local)
+- UX con modales, validaciones y un poquito de dramatismo visual
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Requisitos
 
-```bash
-ng generate --help
-```
+- Node.js 20+
+- npm 10+
 
-## Building
+## Instalación
 
-To build the project run:
+1. Instalar dependencias:
 
-```bash
-ng build
-```
+	npm install
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+2. Levantar el proyecto:
 
-## Running unit tests
+	npm start
 
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+3. Abrir en navegador:
 
-```bash
-ng test
-```
+	http://localhost:4200
 
-## Running end-to-end tests
+## Scripts útiles
 
-For end-to-end (e2e) testing, run:
+- Desarrollo: npm start
+- Tests: npm test
+- Build: npm run build
 
-```bash
-ng e2e
-```
+## Config de API
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+Actualmente el frontend apunta a:
 
-## Additional Resources
+- http://api.taskmanager.home
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Si tu backend vive en otro host, ajusta la base URL en el servicio API del proyecto.
+
+## Filosofía de producto (versión hogar)
+
+- Si no está en el dashboard, no existe.
+- Si no tiene responsable, nadie la hace.
+- Si no da puntos, nadie se emociona.
+- Si no hay rol, hay anarquía.
+
+## Estado del proyecto
+
+Frontend funcional para operación diaria doméstica con énfasis en:
+
+- Claridad de sesión activa
+- Control de permisos
+- Feedback visual inmediato
+
+Traducción ejecutiva: ya no discutimos “quién dijo qué”, ahora discutimos contra la evidencia.
+
+## Nota final de papá ingeniero
+
+Sí, pude haber hecho una lista en el refri.
+No, no iba a escalar.
+
+Gracias por venir a mi TED Talk doméstica.
