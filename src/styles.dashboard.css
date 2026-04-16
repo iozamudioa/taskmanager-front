@@ -473,6 +473,15 @@
     object-fit: cover;
 }
 
+.card-image-clickable {
+    cursor: zoom-in;
+    transition: opacity 0.15s ease;
+}
+
+.card-image-clickable:hover {
+    opacity: 0.88;
+}
+
 .card-color-indicator {
     width: 100%;
     height: 100%;
@@ -1673,4 +1682,71 @@
     .profile-cropper-wrap {
         min-height: 240px;
     }
+}
+
+/* ── Task image lightbox ───────────────────────────────────── */
+.task-image-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    background: rgba(0, 0, 0, 0.82);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeInOverlay 0.18s ease;
+}
+
+@keyframes fadeInOverlay {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.task-image-full {
+    max-width: min(92vw, 900px);
+    max-height: 88vh;
+    object-fit: contain;
+    border-radius: 12px;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+    animation: scaleInImage 0.2s ease;
+}
+
+@keyframes scaleInImage {
+    from {
+        transform: scale(0.88);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.task-image-close-btn {
+    position: fixed;
+    top: 18px;
+    right: 22px;
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    color: #fff;
+    font-size: 1.4rem;
+    line-height: 1;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease;
+    backdrop-filter: blur(4px);
+}
+
+.task-image-close-btn:hover {
+    background: rgba(255, 255, 255, 0.28);
 }

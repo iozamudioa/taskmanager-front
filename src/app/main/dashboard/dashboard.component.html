@@ -95,7 +95,10 @@
                         <div class="task-card" [class.completed]="task.completed" [class.has-image]="!!task.image">
                             <div class="card-visual" [ngStyle]="getTaskBackgroundColor(task)">
                                 @if (task.image) {
-                                <img [src]="task.image" [alt]="task.title" class="card-image" />
+                                <img [src]="task.image" [alt]="task.title" class="card-image card-image-clickable"
+                                    (click)="openTaskImagePreview(task.image!)"
+                                    (keydown.enter)="openTaskImagePreview(task.image!)" tabindex="0" role="button"
+                                    [attr.aria-label]="'Ver imagen de ' + task.title" />
                                 } @else {
                                 <div class="card-color-indicator"></div>
                                 }
@@ -607,3 +610,11 @@
     </div>
     }
 </div>
+
+@if (taskImagePreview()) {
+<div class="task-image-overlay" (click)="closeTaskImagePreview()" role="dialog" aria-modal="true"
+    aria-label="Vista previa de imagen">
+    <button class="task-image-close-btn" (click)="closeTaskImagePreview()" aria-label="Cerrar">✕</button>
+    <img class="task-image-full" [src]="taskImagePreview()" alt="Vista previa" (click)="$event.stopPropagation()" />
+</div>
+}

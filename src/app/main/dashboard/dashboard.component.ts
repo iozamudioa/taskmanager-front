@@ -61,6 +61,7 @@ export class DashboardComponent implements OnInit {
     editingTaskId = signal<number | null>(null);
     cloningTask = signal(false);
     taskColorPickerOpen = false;
+    taskImagePreview = signal<string | null>(null);
 
     showProfileModal = signal(false);
     savingProfile = signal(false);
@@ -336,9 +337,35 @@ export class DashboardComponent implements OnInit {
 
         const reader = new FileReader();
         reader.onload = () => {
-            const b64 = reader.result as string;
-            this.profileCroppedImage.set(b64);
-            this.profileForm.image = b64;
+            const rawB64 = reader.result as string;
+            const img = new Image();
+            img.onload = () => {
+                const maxSize = 512;
+                let { width, height } = img;
+                if (width > maxSize || height > maxSize) {
+                    const ratio = Math.min(maxSize / width, maxSize / height);
+                    width = Math.round(width * ratio);
+                    height = Math.round(height * ratio);
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    this.profileCroppedImage.set(rawB64);
+                    this.profileForm.image = rawB64;
+                    return;
+                }
+                ctx.drawImage(img, 0, 0, width, height);
+                const compressed = canvas.toDataURL('image/jpeg', 0.82);
+                this.profileCroppedImage.set(compressed);
+                this.profileForm.image = compressed;
+            };
+            img.onerror = () => {
+                this.profileCroppedImage.set(rawB64);
+                this.profileForm.image = rawB64;
+            };
+            img.src = rawB64;
         };
         reader.readAsDataURL(blobSource);
     }
@@ -563,7 +590,7 @@ export class DashboardComponent implements OnInit {
         if (!file) return;
 
         try {
-            this.taskForm.image = await this.fileToBase64(file);
+            this.taskForm.image = await this.compressImageToBase64(file);
         } catch {
             this.createTaskError.set('No se pudo procesar la imagen seleccionada.');
         } finally {
@@ -1318,5 +1345,13 @@ export class DashboardComponent implements OnInit {
 
     get colors(): string[] {
         return ['#ede9fe', '#dbeafe', '#dcfce7', '#fef3c7', '#fed7aa', '#fee2e2', '#f3e8ff'];
+    }
+
+    openTaskImagePreview(url: string): void {
+        this.taskImagePreview.set(url);
+    }
+
+    closeTaskImagePreview(): void {
+        this.taskImagePreview.set(null);
     }
 }
