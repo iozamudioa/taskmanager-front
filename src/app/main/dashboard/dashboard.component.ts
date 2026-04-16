@@ -28,6 +28,7 @@ interface FireworkParticle {
 }
 
 type ProfilePinMode = 'validate' | 'setup';
+type ProfilePinContext = 'change' | 'reauth';
 
 @Component({
     selector: 'app-dashboard',
@@ -35,6 +36,9 @@ type ProfilePinMode = 'validate' | 'setup';
     imports: [CommonModule, FormsModule, ImageCropperComponent, ColorPickerDirective],
     templateUrl: './dashboard.component.html',
     styleUrl: './dashboard.component.css',
+    host: {
+        '(window:keydown.escape)': 'onEscapeKey()',
+    },
 })
 export class DashboardComponent implements OnInit {
     private state = inject(AppStateService);
@@ -42,7 +46,7 @@ export class DashboardComponent implements OnInit {
     private api = inject(ApiService);
 
     dashboard = signal<DashboardResponse | null>(null);
-    members = signal<HouseMemberResponse[]>([]);
+    members = signal<HouseMemberResponse[]>(this.state.houseMembers());
     houseUsers = signal<HouseUserResponse[]>([]);
     loading = signal(false);
     error = signal('');
@@ -75,6 +79,7 @@ export class DashboardComponent implements OnInit {
     readonly pinSlotCount = 4;
     showProfilePinModal = signal(false);
     profilePinMode = signal<ProfilePinMode>('validate');
+    profilePinContext = signal<ProfilePinContext>('change');
     profilePinSubmitting = signal(false);
     profilePinError = signal('');
     profilePinCurrent = '';
@@ -212,12 +217,16 @@ export class DashboardComponent implements OnInit {
             this.router.navigate(['/onboarding/select-user'], { replaceUrl: true });
             return;
         }
+
+        if (this.shouldRequireRefreshPin()) {
+            this.openRefreshPinModal();
+            return;
+        }
+
         if (!this.isAdmin && this.currentUser?.id) {
             this.selectedUserId.set(this.currentUser.id);
         }
-        this.loadMembers();
-        this.loadDashboard();
-        this.loadSessionPoints();
+        this.loadDashboardSession();
     }
 
     loadMembers(): void {
@@ -389,12 +398,19 @@ export class DashboardComponent implements OnInit {
         }
 
         this.resetProfilePinFlow();
+        this.profilePinContext.set('change');
         this.showProfilePinModal.set(true);
         this.queueProfilePinCurrentFocus();
     }
 
     closeProfilePinModal(): void {
         if (this.profilePinSubmitting()) {
+            return;
+        }
+
+        if (this.profilePinContext() === 'reauth') {
+            this.resetProfilePinFlow();
+            this.logout();
             return;
         }
 
@@ -432,11 +448,19 @@ export class DashboardComponent implements OnInit {
     }
 
     getProfilePinModalTitle(): string {
-        return this.profilePinMode() === 'setup' ? 'Configurar PIN nuevo' : 'Ingresa tu PIN actual';
+        if (this.profilePinMode() === 'setup') {
+            return 'Configurar PIN nuevo';
+        }
+
+        return this.profilePinContext() === 'reauth' ? 'Ingresa tu PIN' : 'Ingresa tu PIN actual';
     }
 
     getProfilePinActionText(): string {
-        return this.profilePinMode() === 'setup' ? 'Guardar PIN' : 'Continuar';
+        if (this.profilePinMode() === 'setup') {
+            return 'Guardar PIN';
+        }
+
+        return this.profilePinContext() === 'reauth' ? 'Entrar' : 'Continuar';
     }
 
     getProfilePinSlots(value: string): string[] {
@@ -484,13 +508,17 @@ export class DashboardComponent implements OnInit {
 
         if (this.profilePinMode() === 'validate') {
             if (!this.profilePinCurrent) {
-                this.profilePinError.set('Ingresa tu PIN actual.');
+                this.profilePinError.set(this.profilePinContext() === 'reauth' ? 'Ingresa tu PIN.' : 'Ingresa tu PIN actual.');
                 this.queueProfilePinCurrentFocus();
                 return;
             }
 
             if (this.profilePinCurrent.length !== this.pinSlotCount) {
-                this.profilePinError.set(`El PIN actual debe tener ${this.pinSlotCount} números.`);
+                this.profilePinError.set(
+                    this.profilePinContext() === 'reauth'
+                        ? `El PIN debe tener ${this.pinSlotCount} números.`
+                        : `El PIN actual debe tener ${this.pinSlotCount} números.`
+                );
                 this.queueProfilePinCurrentFocus();
                 return;
             }
@@ -533,6 +561,30 @@ export class DashboardComponent implements OnInit {
                     )
                 )
             );
+
+            if (this.profilePinContext() === 'reauth') {
+                if (response.valid) {
+                    this.profilePinSubmitting.set(false);
+                    this.resetProfilePinFlow();
+                    if (!this.isAdmin && this.currentUser?.id) {
+                        this.selectedUserId.set(this.currentUser.id);
+                    }
+                    this.loadDashboardSession();
+                    return;
+                }
+
+                if (response.code === 'UNAUTHORIZED') {
+                    this.profilePinError.set(response.message ?? 'Sesión no autorizada.');
+                    this.profilePinSubmitting.set(false);
+                    return;
+                }
+
+                this.profilePinCurrent = '';
+                this.profilePinError.set(response.message ?? 'PIN incorrecto.');
+                this.profilePinSubmitting.set(false);
+                this.queueProfilePinCurrentFocus();
+                return;
+            }
 
             if (response.valid || response.requiresPinSetup || response.code === 'PIN_SETUP_REQUIRED') {
                 this.profilePinMode.set('setup');
@@ -774,6 +826,7 @@ export class DashboardComponent implements OnInit {
     private resetProfilePinFlow(): void {
         this.showProfilePinModal.set(false);
         this.profilePinMode.set('validate');
+        this.profilePinContext.set('change');
         this.profilePinSubmitting.set(false);
         this.profilePinError.set('');
         this.profilePinCurrent = '';
@@ -804,6 +857,71 @@ export class DashboardComponent implements OnInit {
         setTimeout(() => {
             this.focusProfilePinConfirmInput();
         }, 60);
+    }
+
+    private openRefreshPinModal(): void {
+        this.resetProfilePinFlow();
+        this.profilePinContext.set('reauth');
+        this.showProfilePinModal.set(true);
+        this.queueProfilePinCurrentFocus();
+    }
+
+    private loadDashboardSession(): void {
+        this.loadMembers();
+        this.loadDashboard();
+        this.loadSessionPoints();
+    }
+
+    private shouldRequireRefreshPin(): boolean {
+        if (this.isFromSelectUserNavigation()) {
+            return false;
+        }
+
+        if (!this.isReloadNavigation()) {
+            return false;
+        }
+
+        const roleId = this.getCurrentUserRoleId();
+        return roleId === ROLE_OWNER || roleId === ROLE_ADMIN;
+    }
+
+    private getCurrentUserRoleId(): number {
+        const userId = this.currentUser?.id;
+        if (!userId) {
+            return 0;
+        }
+
+        const storedMember = this.state.houseMembers().find((member) => member.userId === userId);
+        if (storedMember) {
+            return storedMember.roleId;
+        }
+
+        const loadedMember = this.members().find((member) => member.userId === userId);
+        return loadedMember?.roleId ?? 0;
+    }
+
+    private isReloadNavigation(): boolean {
+        if (typeof performance === 'undefined') {
+            return false;
+        }
+
+        const navigationEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+        if (navigationEntry?.type) {
+            return navigationEntry.type === 'reload';
+        }
+
+        const legacyNavigation = (performance as Performance & { navigation?: { type?: number } }).navigation;
+        return legacyNavigation?.type === 1;
+    }
+
+    private isFromSelectUserNavigation(): boolean {
+        const fromCurrentNavigation = this.router.getCurrentNavigation()?.extras.state?.['fromSelectUser'];
+        if (fromCurrentNavigation === true) {
+            return true;
+        }
+
+        const fromHistoryState = (history.state as { fromSelectUser?: unknown } | undefined)?.fromSelectUser;
+        return fromHistoryState === true;
     }
 
     private applyUpdatedUser(updatedUser: HouseUserResponse['user']): void {
@@ -1212,6 +1330,37 @@ export class DashboardComponent implements OnInit {
     closeAlertModal(): void {
         this.showAlertModal.set(false);
         this.alertModalAction = null;
+    }
+
+    onEscapeKey(): void {
+        if (this.taskImagePreview()) {
+            this.closeTaskImagePreview();
+            return;
+        }
+
+        if (this.showAlertModal()) {
+            this.closeAlertModal();
+            return;
+        }
+
+        if (this.showProfilePinModal()) {
+            this.closeProfilePinModal();
+            return;
+        }
+
+        if (this.showProfileModal()) {
+            this.closeProfileModal();
+            return;
+        }
+
+        if (this.showMembersModal()) {
+            this.closeMembersModal();
+            return;
+        }
+
+        if (this.showCreateModal()) {
+            this.closeCreateModal();
+        }
     }
 
     confirmAlertModal(): void {

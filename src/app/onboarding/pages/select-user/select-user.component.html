@@ -142,10 +142,6 @@
             <div class="pin-actions">
                 <button type="button" class="btn-back" (click)="closePinModal()"
                     [disabled]="pinSubmitting()">Cancelar</button>
-                <button type="button" class="btn-retry" (click)="submitPin()" [disabled]="pinSubmitting()">
-                    {{ pinSubmitting() ? (pinMode() === 'setup' ? 'Guardando...' : 'Validando...') : getPinActionText()
-                    }}
-                </button>
             </div>
             }
         </div>

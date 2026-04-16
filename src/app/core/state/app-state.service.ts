@@ -1,15 +1,18 @@
 import { isPlatformBrowser } from '@angular/common';
 import { computed, inject, Injectable, PLATFORM_ID, signal } from '@angular/core';
+import { Title } from '@angular/platform-browser';
 import { HouseMemberResponse, HouseResponse } from '../models/house.model';
 import { UserResponse } from '../models/user.model';
 
 const STORAGE_KEY_USER = 'tm_current_user';
 const STORAGE_KEY_HOUSE = 'tm_current_house';
 const STORAGE_KEY_MEMBERS = 'tm_house_members';
+const DEFAULT_APP_TITLE = 'Tareitas';
 
 @Injectable({ providedIn: 'root' })
 export class AppStateService {
     private platformId = inject(PLATFORM_ID);
+    private title = inject(Title);
     private isBrowser = isPlatformBrowser(this.platformId);
 
     private _currentUser = signal<UserResponse | null>(this.loadFromStorage<UserResponse>(STORAGE_KEY_USER));
@@ -22,6 +25,10 @@ export class AppStateService {
 
     readonly isOnboarded = computed(() => !!this._currentUser() && !!this._currentHouse());
 
+    constructor() {
+        this.syncDocumentTitle(this._currentHouse());
+    }
+
     setCurrentUser(user: UserResponse | null): void {
         this._currentUser.set(user);
         this.saveToStorage(STORAGE_KEY_USER, user);
@@ -30,6 +37,7 @@ export class AppStateService {
     setCurrentHouse(house: HouseResponse | null): void {
         this._currentHouse.set(house);
         this.saveToStorage(STORAGE_KEY_HOUSE, house);
+        this.syncDocumentTitle(house);
         if (!house) {
             this._houseMembers.set([]);
             this.saveToStorage(STORAGE_KEY_MEMBERS, []);
@@ -45,6 +53,7 @@ export class AppStateService {
         this._currentUser.set(null);
         this._currentHouse.set(null);
         this._houseMembers.set([]);
+        this.syncDocumentTitle(null);
         if (this.isBrowser) {
             localStorage.removeItem(STORAGE_KEY_USER);
             localStorage.removeItem(STORAGE_KEY_HOUSE);
@@ -69,5 +78,14 @@ export class AppStateService {
         } else {
             localStorage.setItem(key, JSON.stringify(value));
         }
+    }
+
+    private syncDocumentTitle(house: HouseResponse | null): void {
+        if (!this.isBrowser) {
+            return;
+        }
+
+        const nextTitle = house?.name?.trim() || DEFAULT_APP_TITLE;
+        this.title.setTitle(nextTitle);
     }
 }

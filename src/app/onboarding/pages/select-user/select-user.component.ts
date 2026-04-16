@@ -20,6 +20,9 @@ type PinMode = 'validate' | 'setup';
     imports: [CommonModule],
     templateUrl: './select-user.component.html',
     styleUrl: './select-user.component.css',
+    host: {
+        '(window:keydown.escape)': 'onEscapeKey()',
+    },
 })
 export class SelectUserComponent implements OnDestroy {
     private router = inject(Router);
@@ -178,6 +181,12 @@ export class SelectUserComponent implements OnDestroy {
     onPinEnter(): void {
         if (!this.pinSubmitting()) {
             void this.submitPin();
+        }
+    }
+
+    onEscapeKey(): void {
+        if (this.pinModalOpen()) {
+            this.closePinModal();
         }
     }
 
@@ -396,7 +405,11 @@ export class SelectUserComponent implements OnDestroy {
 
         this.state.setCurrentUser(user);
         this.pinModalOpen.set(false);
-        this.router.navigate(['/app']);
+        this.router.navigate(['/app'], {
+            state: {
+                fromSelectUser: true,
+            },
+        });
     }
 
     private normalizePinInput(value: string): string {

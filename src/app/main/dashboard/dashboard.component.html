@@ -444,11 +444,6 @@
                 <div class="modal-actions">
                     <button class="btn-cancel" type="button" (click)="closeProfilePinModal()"
                         [disabled]="profilePinSubmitting()">Cancelar</button>
-                    <button class="btn-submit" type="button" (click)="submitProfilePinChange()"
-                        [disabled]="profilePinSubmitting()">
-                        {{ profilePinSubmitting() ? (profilePinMode() === 'setup' ? 'Guardando...' : 'Validando...') :
-                        getProfilePinActionText() }}
-                    </button>
                 </div>
             </div>
         </div>
