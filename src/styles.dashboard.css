@@ -105,6 +105,12 @@
     max-width: 100%;
 }
 
+.session-indicator--plain {
+    background: transparent;
+    border: 0;
+    padding: 0;
+}
+
 .session-label {
     font-size: 0.72rem;
     font-weight: 700;

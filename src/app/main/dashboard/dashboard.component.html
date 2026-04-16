@@ -16,10 +16,9 @@
             <div class="house-info">
                 <h1 class="house-name">{{ getCurrentHeaderIdentity() }}</h1>
                 <p class="header-date">{{ formatDate(selectedDate()) }} · {{ getCurrentTimeAmPm() }}</p>
+                @if (isAdmin) {
                 <div class="session-indicator" title="Usuario con sesión activa en esta pantalla">
-                    @if (isAdmin){
                     <span class="session-role">{{ getCurrentUserRoleLabel() }}</span>
-                    }
                     <span class="session-points" [class.points-bump]="pointsPulse()" title="Puntos de hoy">
                         ⭐ Hoy: <strong>{{ getTodayPoints() }}</strong>
                     </span>
@@ -27,6 +26,16 @@
                         🏆 Mes: <strong>{{ getMonthPoints() }}</strong>
                     </span>
                 </div>
+                } @else {
+                <div class="session-indicator session-indicator--plain">
+                    <span class="session-points" [class.points-bump]="pointsPulse()" title="Puntos de hoy">
+                        ⭐ Hoy: <strong>{{ getTodayPoints() }}</strong>
+                    </span>
+                    <span class="session-points month" [class.points-bump]="pointsPulse()" title="Puntos del mes">
+                        🏆 Mes: <strong>{{ getMonthPoints() }}</strong>
+                    </span>
+                </div>
+                }
             </div>
         </div>
 

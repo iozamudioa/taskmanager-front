@@ -38,6 +38,11 @@ type ProfilePinContext = 'change' | 'reauth';
     styleUrl: './dashboard.component.css',
     host: {
         '(window:keydown.escape)': 'onEscapeKey()',
+        '(window:mousemove)': 'onUserActivity()',
+        '(window:keydown)': 'onUserActivity()',
+        '(window:click)': 'onUserActivity()',
+        '(window:scroll)': 'onUserActivity()',
+        '(window:touchstart)': 'onUserActivity()',
     },
 })
 export class DashboardComponent implements OnInit, OnDestroy {
@@ -131,7 +136,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private todayPointsRaf?: number;
     private monthPointsRaf?: number;
     private clockInterval?: ReturnType<typeof setInterval>;
+    private inactivityTimeout?: ReturnType<typeof setTimeout>;
+    private lastActivityEventAt = 0;
     private lastAutoScrollContext?: string;
+    private readonly inactivityTimeoutMs = 60_000;
 
     get currentHouse() {
         return this.state.currentHouse();
@@ -221,6 +229,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }
 
         this.startClockTicker();
+        this.startInactivityTimer();
 
         if (this.shouldRequireRefreshPin()) {
             this.openRefreshPinModal();
@@ -237,6 +246,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
         if (this.clockInterval) {
             clearInterval(this.clockInterval);
         }
+
+        this.clearInactivityTimer();
+    }
+
+    onUserActivity(): void {
+        const now = Date.now();
+        if (now - this.lastActivityEventAt < 1000) {
+            return;
+        }
+
+        this.lastActivityEventAt = now;
+        this.resetInactivityTimer();
     }
 
     loadMembers(): void {
@@ -281,8 +302,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
         const user = this.currentUser;
         if (!house || !user) return;
 
+        const pointsUserId = this.isAdmin ? (this.selectedUserId() ?? user.id) : user.id;
+
         this.loadingSessionPoints.set(true);
-        this.api.getDashboardPoints(house.id, user.id).subscribe({
+        this.api.getDashboardPoints(house.id, pointsUserId).subscribe({
             next: (points) => {
                 const prevToday = this.animatedTodayPoints();
                 const prevMonth = this.animatedMonthPoints();
@@ -312,6 +335,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }
         this.selectedUserId.set(userId);
         this.loadDashboard();
+        this.loadSessionPoints();
     }
 
     goToPreviousDate(): void {
@@ -2048,6 +2072,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
         this.lastAutoScrollContext = context;
         this.scrollToRelevantSlot();
+    }
+
+    private startInactivityTimer(): void {
+        this.lastActivityEventAt = Date.now();
+        this.resetInactivityTimer();
+    }
+
+    private resetInactivityTimer(): void {
+        this.clearInactivityTimer();
+        this.inactivityTimeout = setTimeout(() => {
+            this.logout();
+        }, this.inactivityTimeoutMs);
+    }
+
+    private clearInactivityTimer(): void {
+        if (!this.inactivityTimeout) {
+            return;
+        }
+
+        clearTimeout(this.inactivityTimeout);
+        this.inactivityTimeout = undefined;
     }
 
     private isSelectedDateToday(): boolean {
