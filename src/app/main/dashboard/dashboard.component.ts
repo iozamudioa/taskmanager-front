@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, HostListener, inject, OnInit, signal, ViewChild } from '@angular/core';
+import { Component, ElementRef, inject, OnInit, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ColorPickerDirective } from 'ngx-color-picker';
@@ -62,29 +62,6 @@ export class DashboardComponent implements OnInit {
     cloningTask = signal(false);
     taskColorPickerOpen = false;
     taskImagePreview = signal<string | null>(null);
-    headerCompact = signal(false);
-
-    @HostListener('window:scroll')
-    onWindowScroll(): void {
-        if (this.getMaxScrollableY() <= 140) {
-            if (this.headerCompact()) {
-                this.headerCompact.set(false);
-            }
-            return;
-        }
-
-        const scrollY = window.scrollY;
-        const isCompact = this.headerCompact();
-
-        if (!isCompact && scrollY > 96) {
-            this.headerCompact.set(true);
-            return;
-        }
-
-        if (isCompact && scrollY < 32) {
-            this.headerCompact.set(false);
-        }
-    }
 
     showProfileModal = signal(false);
     savingProfile = signal(false);
@@ -809,6 +786,10 @@ export class DashboardComponent implements OnInit {
         return member ? member.user.username : `ID: ${userId}`;
     }
 
+    shouldShowAssignedUser(): boolean {
+        return this.isAdmin && this.selectedUserId() === null;
+    }
+
     getCurrentUsername(): string {
         return this.currentUser?.username || 'usuario';
     }
@@ -950,6 +931,19 @@ export class DashboardComponent implements OnInit {
 
     isCurrentHour(hour: number): boolean {
         return this.isSelectedDateToday() && new Date().getHours() === hour;
+    }
+
+    isPastHourWithPendingTasks(slot: TimeSlot): boolean {
+        if (!this.isSelectedDateToday()) {
+            return false;
+        }
+
+        const currentHour = new Date().getHours();
+        if (slot.hour >= currentHour) {
+            return false;
+        }
+
+        return slot.tasks.some((task) => !task.completed);
     }
 
     trackByTask(_: number, task: DashboardTaskInstanceResponse): number {
@@ -1525,7 +1519,6 @@ export class DashboardComponent implements OnInit {
     private scrollWindowTo(targetTop: number): void {
         const maxScrollable = this.getMaxScrollableY();
         if (maxScrollable <= 140) {
-            this.headerCompact.set(false);
             return;
         }
 
