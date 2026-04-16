@@ -93,10 +93,10 @@
 
 .members-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 1.5rem;
     width: 100%;
-    max-width: 900px;
+    max-width: 1200px;
 }
 
 .user-card {
@@ -176,16 +176,261 @@
     color: white;
 }
 
+.pin-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.58);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    z-index: 1000;
+}
+
+.pin-modal {
+    width: min(100%, 21rem);
+    background: white;
+    border-radius: 1rem;
+    padding: 1.25rem;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.2);
+}
+
+.pin-modal h2 {
+    margin: 0 0 0.85rem;
+    color: #333;
+    font-size: 1.25rem;
+}
+
+.pin-setup-success {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.pin-setup-success p {
+    margin: 0;
+    color: #444;
+    font-size: 0.95rem;
+}
+
+.pin-setup-success .pin-actions {
+    justify-content: flex-end;
+}
+
+.pin-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-bottom: 0.75rem;
+}
+
+.pin-input-group label {
+    color: #444;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.pin-input-wrapper {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.pin-visual-input {
+    flex: 0 0 auto;
+    position: relative;
+    cursor: text;
+}
+
+.pin-hidden-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.015;
+    border: none;
+    outline: none;
+    z-index: 2;
+    font-size: 16px;
+    caret-color: transparent;
+}
+
+.pin-slots {
+    display: grid;
+    grid-template-columns: repeat(var(--pin-slot-count, 4), minmax(0, 1fr));
+    gap: 0.45rem;
+    width: fit-content;
+}
+
+.pin-slot {
+    width: 3.2rem;
+    aspect-ratio: 1 / 1;
+    border-radius: 0.8rem;
+    border: 1px solid #d4d8e2;
+    background: #f8f9fb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #8a8fa3;
+    transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.pin-slot-filled {
+    color: #252b37;
+    background: #fff;
+}
+
+.pin-visual-input:focus-within .pin-slot {
+    border-color: #764ba2;
+    background: #fff;
+}
+
+.pin-toggle {
+    border: 1px solid #d4d8e2;
+    background: #f8f9fb;
+    color: #333;
+    border-radius: 0.5rem;
+    padding: 0 0.7rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.pin-icon-toggle {
+    width: 2.9rem;
+    height: 3rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pin-icon-toggle svg {
+    width: 1.25rem;
+    height: 1.25rem;
+    fill: currentColor;
+}
+
+.pin-error {
+    margin: 0.25rem 0 0.85rem;
+    color: #d92d20;
+    font-size: 0.87rem;
+}
+
+.pin-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+}
+
+.pin-actions .btn-back,
+.pin-actions .btn-retry {
+    transition: none;
+}
+
+.pin-actions .btn-back:disabled,
+.pin-actions .btn-retry:disabled,
+.pin-toggle:disabled,
+.pin-hidden-input:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
 @media (max-width: 768px) {
     .select-user-container {
-        padding: 1rem;
+        padding: 0.7rem;
     }
 
     .header h1 {
-        font-size: 1.8rem;
+        font-size: 1.45rem;
+    }
+
+    .house-name {
+        font-size: 0.9rem;
     }
 
     .members-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.45rem;
+    }
+
+    .user-card {
+        aspect-ratio: 1 / 1;
+        padding: 0.45rem 0.35rem;
+        border-radius: 0.6rem;
+        justify-content: center;
+        gap: 0.2rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.09);
+    }
+
+    .user-avatar {
+        width: 34px;
+        height: 34px;
+        font-size: 0.95rem;
+        margin-bottom: 0.2rem;
+    }
+
+    .user-card h3 {
+        font-size: 0.72rem;
+        margin: 0;
+        line-height: 1.05;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        overflow: hidden;
+    }
+
+    .username {
+        font-size: 0.62rem;
+        margin: 0;
+        max-width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .role-badge {
+        padding: 0.2rem 0.35rem;
+        font-size: 0.55rem;
+        letter-spacing: 0.15px;
+        border-radius: 999px;
+    }
+
+    .pin-modal {
+        width: min(100%, 19rem);
+        border-radius: 0.8rem;
+        padding: 1rem;
+    }
+
+    .pin-modal h2 {
+        font-size: 1.1rem;
+    }
+
+    .pin-input-wrapper input {
+        padding: 0.58rem 0.68rem;
+        font-size: 0.95rem;
+    }
+
+    .pin-slots {
+        gap: 0.3rem;
+    }
+
+    .pin-slot {
+        width: 2.75rem;
+        border-radius: 0.7rem;
+        font-size: 1.15rem;
+    }
+
+    .pin-toggle {
+        font-size: 0.78rem;
+        padding: 0 0.55rem;
+    }
+
+    .pin-icon-toggle {
+        width: 2.65rem;
+        height: 2.65rem;
     }
 }

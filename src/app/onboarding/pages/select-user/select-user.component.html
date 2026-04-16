@@ -1,44 +1,155 @@
 <div class="select-user-container">
     <div class="header">
         <h1>Selecciona un Usuario</h1>
-        <p *ngIf="currentHouse" class="house-name">Casa: <strong>{{ currentHouse.name }}</strong></p>
+        @if (currentHouse) {
+        <p class="house-name">Casa: <strong>{{ currentHouse.name }}</strong></p>
+        }
     </div>
 
-    <ng-container *ngIf="vm$ | async as vm">
-        <div *ngIf="vm.loading" class="loading">
-            <div class="spinner"></div>
-            <p>Cargando usuarios...</p>
-        </div>
+    @if (vm$ | async; as vm) {
+    @if (vm.loading) {
+    <div class="loading">
+        <div class="spinner"></div>
+        <p>Cargando usuarios...</p>
+    </div>
+    }
 
-        <div *ngIf="vm.error && !vm.loading" class="error">
-            <p>{{ vm.error }}</p>
-            <div class="error-actions">
-                <button class="btn-retry" (click)="loadMembers()">Reintentar</button>
-                <button class="btn-back" (click)="goBack()">Volver</button>
-            </div>
-        </div>
-
-        <div *ngIf="!vm.loading && !vm.error && vm.users.length === 0" class="empty">
-            <p>No hay usuarios en esta casa.</p>
+    @if (vm.error && !vm.loading) {
+    <div class="error">
+        <p>{{ vm.error }}</p>
+        <div class="error-actions">
+            <button class="btn-retry" (click)="loadMembers()">Reintentar</button>
             <button class="btn-back" (click)="goBack()">Volver</button>
         </div>
+    </div>
+    }
 
-        <div *ngIf="!vm.loading && !vm.error && vm.users.length > 0" class="members-grid">
-            <div *ngFor="let member of vm.users; trackBy: trackByUser" class="user-card" (click)="selectUser(member)">
-                <div class="user-avatar">
-                    <ng-container *ngIf="member.user.image; else defaultAvatar">
-                        <img class="user-avatar-image" [src]="member.user.image" [alt]="getUserDisplayName(member)" />
-                    </ng-container>
-                    <ng-template #defaultAvatar>
-                        {{ getUserInitial(member) }}
-                    </ng-template>
-                </div>
-                <h3>{{ getUserDisplayName(member) }}</h3>
-                <p class="username">@{{ getUserUsername(member) }}</p>
-                <span class="role-badge" [ngClass]="'role-' + member.roleId">
-                    {{ getRoleName(member.roleId) }}
-                </span>
+    @if (!vm.loading && !vm.error && vm.users.length === 0) {
+    <div class="empty">
+        <p>No hay usuarios en esta casa.</p>
+        <button class="btn-back" (click)="goBack()">Volver</button>
+    </div>
+    }
+
+    @if (!vm.loading && !vm.error && vm.users.length > 0) {
+    <div class="members-grid">
+        @for (member of vm.users; track member.id) {
+        <div class="user-card" (click)="selectUser(member)">
+            <div class="user-avatar">
+                @if (member.user.image) {
+                <img class="user-avatar-image" [src]="member.user.image" [alt]="getUserDisplayName(member)" />
+                } @else {
+                {{ getUserInitial(member) }}
+                }
             </div>
+            <h3>{{ getUserDisplayName(member) }}</h3>
+            <p class="username">@{{ getUserUsername(member) }}</p>
+            <span [class]="'role-badge role-' + member.roleId">
+                {{ getRoleName(member.roleId) }}
+            </span>
         </div>
-    </ng-container>
+        }
+    </div>
+    }
+
+    @if (pinModalOpen()) {
+    <div class="pin-modal-overlay" (click)="closePinModal()">
+        <div class="pin-modal" (click)="$event.stopPropagation()">
+            @if (showPinSetupSuccess()) {
+            <div class="pin-setup-success">
+                <h2>PIN configurado</h2>
+                <p>Tu PIN fue configurado con éxito.</p>
+                <div class="pin-actions">
+                    <button type="button" class="btn-retry" (click)="onPinSetupSuccessAccept()">Aceptar</button>
+                </div>
+            </div>
+            } @else {
+            <h2>{{ getPinModalTitle() }}</h2>
+
+            <div class="pin-input-group">
+                <div class="pin-input-wrapper">
+                    <div class="pin-visual-input" (click)="focusPinInput()">
+                        <input #pinInput id="pin-input" class="pin-hidden-input" [type]="showPin ? 'tel' : 'password'"
+                            [value]="pinValue" (input)="updatePin(($any($event.target)).value)" inputmode="numeric"
+                            (keydown.enter)="onPinEnter()" pattern="[0-9]*" autocomplete="one-time-code"
+                            [attr.maxlength]="pinSlotCount" [disabled]="pinSubmitting()"
+                            [attr.enterkeyhint]="pinMode() === 'setup' ? 'next' : 'done'" />
+                        <div class="pin-slots" [style.--pin-slot-count]="pinSlotCount" aria-hidden="true">
+                            @for (slot of getPinSlots(pinValue); track $index) {
+                            <span class="pin-slot" [class.pin-slot-filled]="!!slot">
+                                {{ getPinSlotDisplay(slot, showPin) }}
+                            </span>
+                            }
+                        </div>
+                    </div>
+                    <button type="button" class="pin-toggle pin-icon-toggle" (click)="togglePinVisibility()"
+                        [disabled]="pinSubmitting()" [attr.aria-label]="showPin ? 'Ocultar PIN' : 'Mostrar PIN'">
+                        @if (showPin) {
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path
+                                d="M3.53 2.47 2.47 3.53l3 3C3.56 8.06 2.25 9.9 1.5 12c1.73 4.39 5.95 7.5 10.5 7.5 2.04 0 4.01-.63 5.66-1.71l2.81 2.81 1.06-1.06ZM9.7 10.76l3.54 3.54A2.5 2.5 0 0 1 9.7 10.76Zm7.67 4.84-1.64-1.64c.17-.45.27-.94.27-1.46A4 4 0 0 0 10.04 8.8L8.31 7.07A8.94 8.94 0 0 1 12 6.5c4.55 0 8.77 3.11 10.5 7.5-.75 2.1-2.06 3.94-3.88 5.28l-1.25-1.25Zm-5.2-9.1c-1.14 0-2.23.2-3.25.57l1.55 1.55A4 4 0 0 1 16 12c0 .35-.05.68-.13 1l1.77 1.77c1.34-1.03 2.36-2.43 2.86-4.03-1.4-2.63-4.07-4.24-7.33-4.24Z" />
+                        </svg>
+                        } @else {
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path
+                                d="M12 5c4.55 0 8.77 3.11 10.5 7.5C20.77 16.89 16.55 20 12 20S3.23 16.89 1.5 12.5C3.23 8.11 7.45 5 12 5Zm0 2C8.69 7 5.59 9.11 4.11 12.5 5.59 15.89 8.69 18 12 18s6.41-2.11 7.89-5.5C18.41 9.11 15.31 7 12 7Zm0 2.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Zm0 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z" />
+                        </svg>
+                        }
+                    </button>
+                </div>
+            </div>
+
+            @if (pinMode() === 'setup') {
+            <div class="pin-input-group">
+                <div class="pin-input-wrapper">
+                    <div class="pin-visual-input" (click)="focusPinConfirmInput()">
+                        <input #pinConfirmInput id="pin-confirm-input" class="pin-hidden-input"
+                            [type]="showPinConfirm ? 'tel' : 'password'" [value]="pinConfirmValue"
+                            (input)="updatePinConfirm(($any($event.target)).value)" (keydown.enter)="onPinEnter()"
+                            inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code"
+                            [attr.maxlength]="pinSlotCount" [disabled]="pinSubmitting()" enterkeyhint="done" />
+                        <div class="pin-slots" [style.--pin-slot-count]="pinSlotCount" aria-hidden="true">
+                            @for (slot of getPinSlots(pinConfirmValue); track $index) {
+                            <span class="pin-slot" [class.pin-slot-filled]="!!slot">
+                                {{ getPinSlotDisplay(slot, showPinConfirm) }}
+                            </span>
+                            }
+                        </div>
+                    </div>
+                    <button type="button" class="pin-toggle pin-icon-toggle" (click)="togglePinConfirmVisibility()"
+                        [disabled]="pinSubmitting()"
+                        [attr.aria-label]="showPinConfirm ? 'Ocultar confirmación de PIN' : 'Mostrar confirmación de PIN'">
+                        @if (showPinConfirm) {
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path
+                                d="M3.53 2.47 2.47 3.53l3 3C3.56 8.06 2.25 9.9 1.5 12c1.73 4.39 5.95 7.5 10.5 7.5 2.04 0 4.01-.63 5.66-1.71l2.81 2.81 1.06-1.06ZM9.7 10.76l3.54 3.54A2.5 2.5 0 0 1 9.7 10.76Zm7.67 4.84-1.64-1.64c.17-.45.27-.94.27-1.46A4 4 0 0 0 10.04 8.8L8.31 7.07A8.94 8.94 0 0 1 12 6.5c4.55 0 8.77 3.11 10.5 7.5-.75 2.1-2.06 3.94-3.88 5.28l-1.25-1.25Zm-5.2-9.1c-1.14 0-2.23.2-3.25.57l1.55 1.55A4 4 0 0 1 16 12c0 .35-.05.68-.13 1l1.77 1.77c1.34-1.03 2.36-2.43 2.86-4.03-1.4-2.63-4.07-4.24-7.33-4.24Z" />
+                        </svg>
+                        } @else {
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path
+                                d="M12 5c4.55 0 8.77 3.11 10.5 7.5C20.77 16.89 16.55 20 12 20S3.23 16.89 1.5 12.5C3.23 8.11 7.45 5 12 5Zm0 2C8.69 7 5.59 9.11 4.11 12.5 5.59 15.89 8.69 18 12 18s6.41-2.11 7.89-5.5C18.41 9.11 15.31 7 12 7Zm0 2.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Zm0 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z" />
+                        </svg>
+                        }
+                    </button>
+                </div>
+            </div>
+            }
+
+            @if (pinError()) {
+            <p class="pin-error">{{ pinError() }}</p>
+            }
+
+            <div class="pin-actions">
+                <button type="button" class="btn-back" (click)="closePinModal()"
+                    [disabled]="pinSubmitting()">Cancelar</button>
+                <button type="button" class="btn-retry" (click)="submitPin()" [disabled]="pinSubmitting()">
+                    {{ pinSubmitting() ? (pinMode() === 'setup' ? 'Guardando...' : 'Validando...') : getPinActionText()
+                    }}
+                </button>
+            </div>
+            }
+        </div>
+    </div>
+    }
+    }
 </div>

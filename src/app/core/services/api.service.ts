@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, forkJoin, of } from 'rxjs';
-import { map, switchMap } from 'rxjs/operators';
+import { catchError, map, switchMap } from 'rxjs/operators';
 import {
     AddMemberRequest,
     CreateHouseRequest,
@@ -40,6 +40,30 @@ export interface DashboardPointsResponse {
     date: string;
     todayPoints: number;
     monthPoints: number;
+}
+
+export interface ValidatePinRequest {
+    userId: number;
+    pin: string;
+}
+
+export interface ValidatePinResponse {
+    valid: boolean;
+    code?: string;
+    message?: string;
+    requiresPinSetup?: boolean;
+}
+
+export interface CreatePinRequest {
+    userId: number;
+    pin: string;
+    confirmPin: string;
+}
+
+export interface CreatePinResponse {
+    success: boolean;
+    code?: string;
+    message?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -238,6 +262,145 @@ export class ApiService {
             .set('userId', userId.toString());
 
         return this.http.get<DashboardPointsResponse>(`${API_BASE}/dashboard/points`, { params });
+    }
+
+    validatePin(request: ValidatePinRequest): Observable<ValidatePinResponse> {
+        return this.http.post<ValidatePinResponse>(`${API_BASE}/auth/pin/validate`, request).pipe(
+            catchError((error: unknown) => {
+                const normalized = this.normalizeValidatePinError(
+                    this.getErrorBody(error),
+                    this.getErrorStatus(error)
+                );
+                if (normalized) {
+                    return of(normalized);
+                }
+
+                return of({
+                    valid: false,
+                    code: 'PIN_VALIDATION_FAILED',
+                    message: 'No se pudo validar el PIN.',
+                    requiresPinSetup: false,
+                });
+            })
+        );
+    }
+
+    createPin(request: CreatePinRequest): Observable<CreatePinResponse> {
+        return this.http.post<CreatePinResponse>(`${API_BASE}/auth/pin`, request).pipe(
+            catchError((error: unknown) => {
+                const parsed = this.parseValidatePinErrorBody(this.getErrorBody(error));
+                return of({
+                    success: false,
+                    code: parsed.code,
+                    message: parsed.message ?? 'No se pudo crear el PIN.',
+                });
+            })
+        );
+    }
+
+    private normalizeValidatePinError(rawError: unknown, status: number): ValidatePinResponse | undefined {
+        const parsed = this.parseValidatePinErrorBody(rawError);
+
+        if (parsed.code || parsed.requiresPinSetup !== undefined || parsed.valid !== undefined) {
+            return {
+                valid: parsed.valid ?? false,
+                code: parsed.code,
+                message: parsed.message,
+                requiresPinSetup: parsed.requiresPinSetup ?? false,
+            };
+        }
+
+        if (status === 403) {
+            return {
+                valid: false,
+                code: 'INVALID_PIN',
+                message: 'PIN incorrecto',
+                requiresPinSetup: false,
+            };
+        }
+
+        if (status === 401) {
+            return {
+                valid: false,
+                code: 'UNAUTHORIZED',
+                message: 'Sesión no autorizada para validar PIN.',
+                requiresPinSetup: false,
+            };
+        }
+
+        return undefined;
+    }
+
+    private getErrorStatus(error: unknown): number {
+        if (typeof error === 'object' && error && 'status' in error) {
+            const status = (error as { status?: unknown }).status;
+            return typeof status === 'number' ? status : 0;
+        }
+
+        return 0;
+    }
+
+    private getErrorBody(error: unknown): unknown {
+        if (typeof error === 'object' && error && 'error' in error) {
+            return (error as { error?: unknown }).error;
+        }
+
+        return undefined;
+    }
+
+    private parseValidatePinErrorBody(rawError: unknown): {
+        valid?: boolean;
+        code?: string;
+        message?: string;
+        requiresPinSetup?: boolean;
+    } {
+        if (!rawError) {
+            return {};
+        }
+
+        if (typeof rawError === 'string') {
+            try {
+                const parsed = JSON.parse(rawError) as {
+                    valid?: boolean;
+                    code?: string;
+                    message?: string;
+                    requiresPinSetup?: boolean;
+                    error?: unknown;
+                };
+                if (parsed.error && typeof parsed.error === 'object') {
+                    return parsed.error as {
+                        valid?: boolean;
+                        code?: string;
+                        message?: string;
+                        requiresPinSetup?: boolean;
+                    };
+                }
+                return parsed;
+            } catch {
+                return {};
+            }
+        }
+
+        if (typeof rawError === 'object') {
+            const parsed = rawError as {
+                valid?: boolean;
+                code?: string;
+                message?: string;
+                requiresPinSetup?: boolean;
+                error?: unknown;
+            };
+            if (parsed.error && typeof parsed.error === 'object') {
+                return parsed.error as {
+                    valid?: boolean;
+                    code?: string;
+                    message?: string;
+                    requiresPinSetup?: boolean;
+                };
+            }
+            return parsed;
+        }
+
+        return {};
     }
 
     private normalizeDashboard(dashboard: DashboardResponse): DashboardResponse {
