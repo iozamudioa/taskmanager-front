@@ -1988,51 +1988,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.taskImagePreview.set(null);
     }
 
-    scrollToCurrentHour(): void {
-        const slots = this.timeSlots;
-        if (!slots.length) return;
-
-        const now = new Date();
-        const currentHour = now.getHours();
-
-        // Prefer: slot at current hour with tasks, then next slot with tasks, then current hour, then next slot
-        const withTasks = slots.filter((s) => s.tasks.length > 0);
-        const target =
-            withTasks.find((s) => s.hour === currentHour) ??
-            withTasks.find((s) => s.hour > currentHour) ??
-            withTasks[withTasks.length - 1] ??
-            slots.find((s) => s.hour === currentHour) ??
-            slots.find((s) => s.hour > currentHour) ??
-            slots[0];
-
-        if (!target) return;
-
-        const el = document.getElementById(`slot-${target.hour}`);
-        if (!el) return;
-
-        const headerHeight = document.querySelector('.dashboard-header')?.getBoundingClientRect().height ?? 120;
-        const top = el.getBoundingClientRect().top + window.scrollY - headerHeight - 16;
-        this.scrollWindowTo(top);
-    }
-
     scrollToRelevantSlot(): void {
         if (!this.tasks.length) {
             this.scrollWindowTo(0);
             return;
         }
 
-        if (this.isSelectedDateToday()) {
-            this.scrollToCurrentHour();
-            return;
-        }
+        const targetSlot =
+            this.timeSlots.find((slot) => slot.tasks.some((task) => !task.completed)) ??
+            this.timeSlots.find((slot) => slot.tasks.length > 0) ??
+            this.timeSlots[0];
 
-        const firstSlot = this.timeSlots[0];
-        if (!firstSlot) {
+        if (!targetSlot) {
             this.scrollWindowTo(0);
             return;
         }
 
-        const el = document.getElementById(`slot-${firstSlot.hour}`);
+        const el = document.getElementById(`slot-${targetSlot.hour}`);
         if (!el) {
             this.scrollWindowTo(0);
             return;
