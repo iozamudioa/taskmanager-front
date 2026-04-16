@@ -219,10 +219,13 @@ export class ApiService {
         );
     }
 
-    getDashboard(houseId: number, userId?: number): Observable<DashboardResponse> {
+    getDashboard(houseId: number, userId?: number, date?: string): Observable<DashboardResponse> {
         let params = new HttpParams().set('houseId', houseId.toString());
         if (userId !== undefined) {
             params = params.set('userId', userId.toString());
+        }
+        if (date) {
+            params = params.set('date', date);
         }
         return this.http
             .get<DashboardResponse>(`${API_BASE}/dashboard`, { params })

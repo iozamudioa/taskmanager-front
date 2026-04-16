@@ -1,6 +1,6 @@
 <div class="dashboard-wrapper">
     <!-- Header -->
-    <header class="dashboard-header">
+    <header class="dashboard-header" [class.compact]="headerCompact()">
         <div class="header-top">
             <div class="header-avatar" (click)="openProfileModal()" title="Editar mi perfil" role="button" tabindex="0"
                 (keydown.enter)="openProfileModal()" (keydown.space)="openProfileModal()">
@@ -70,23 +70,46 @@
         </div>
         } @else {
         <div class="hourly-list">
-            <div class="refresh-bar">
-                <button class="refresh-btn" (click)="loadDashboard()" title="Actualizar">🔄</button>
-                <span class="refresh-hint">Actualizado en tiempo real</span>
-            </div>
+            @if (canUseDashboardDateNav) {
+            <section class="dashboard-date-nav" aria-label="Navegación por fecha" [hidden]="!canUseDashboardDateNav">
+                <button class="date-nav-btn" type="button" (click)="goToPreviousDate()" aria-label="Ver día anterior">
+                    ‹
+                </button>
 
-            @if (timeSlots.length === 0 || (timeSlots.length === 1 && timeSlots[0].tasks.length === 0)) {
+                <div class="date-nav-center">
+                    <button class="date-nav-value" type="button" (click)="openDashboardDatePicker()"
+                        aria-label="Elegir una fecha específica">
+                        {{ selectedDateTitle }}
+                    </button>
+                    <input #dashboardDateInput class="date-picker-input" type="date" [value]="selectedDateInputValue"
+                        (change)="onDashboardDateSelected($event)" aria-label="Seleccionar fecha del dashboard" />
+                </div>
+
+                <button class="date-nav-today-btn" type="button" (click)="goToToday()"
+                    [class.active]="selectedDateInputValue === todayInputValue"
+                    [disabled]="selectedDateInputValue === todayInputValue" aria-label="Ir a hoy">
+                    Hoy
+                </button>
+
+                <button class="date-nav-btn" type="button" (click)="goToNextDate()" aria-label="Ver día siguiente">
+                    ›
+                </button>
+            </section>
+            }
+
+            @if (tasks.length === 0) {
             <div class="empty-state">
                 <div class="empty-icon">📅</div>
                 <h3 class="empty-title">Sin tareas</h3>
-                <p class="empty-subtitle">No hay tareas programadas para hoy.</p>
+                <p class="empty-subtitle">No hay tareas programadas para esta fecha.</p>
             </div>
             } @else {
             <div class="time-slots">
                 @for (slot of timeSlots; track trackByHour($index, slot)) {
-                <div class="time-slot">
+                <div class="time-slot" [id]="'slot-' + slot.hour" [class.current-hour]="isCurrentHour(slot.hour)">
                     <div class="time-header">
-                        <span class="time-badge">{{ slot.time }}</span>
+                        <span class="time-badge" [class.active]="isCurrentHour(slot.hour)">{{ slot.time }}</span>
+                        @if (isCurrentHour(slot.hour)) { <span class="now-dot"></span> }
                         <span class="task-count">{{ slot.tasks.length }} tarea(s)</span>
                     </div>
 

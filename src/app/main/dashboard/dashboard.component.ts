@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, inject, OnInit, signal, ViewChild } from '@angular/core';
+import { Component, ElementRef, HostListener, inject, OnInit, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ColorPickerDirective } from 'ngx-color-picker';
@@ -62,6 +62,12 @@ export class DashboardComponent implements OnInit {
     cloningTask = signal(false);
     taskColorPickerOpen = false;
     taskImagePreview = signal<string | null>(null);
+    headerCompact = signal(false);
+
+    @HostListener('window:scroll')
+    onWindowScroll(): void {
+        this.headerCompact.set(window.scrollY > 56);
+    }
 
     showProfileModal = signal(false);
     savingProfile = signal(false);
@@ -99,6 +105,7 @@ export class DashboardComponent implements OnInit {
 
     recurrenceDays = RECURRENCE_DAYS;
     @ViewChild('titleInput') titleInput?: ElementRef<HTMLInputElement>;
+    @ViewChild('dashboardDateInput') dashboardDateInput?: ElementRef<HTMLInputElement>;
 
     taskForm: CreateTaskRequest = this.getDefaultTaskForm();
 
@@ -117,6 +124,21 @@ export class DashboardComponent implements OnInit {
 
     get tasks(): DashboardTaskInstanceResponse[] {
         return this.dashboard()?.todayInstances ?? [];
+    }
+
+    get selectedDateTitle(): string {
+        const date = this.selectedDate();
+        const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+        const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+        return `${days[date.getDay()]}, ${date.getDate()} de ${months[date.getMonth()]} del ${date.getFullYear()}`;
+    }
+
+    get selectedDateInputValue(): string {
+        return this.toIsoDate(this.selectedDate());
+    }
+
+    get todayInputValue(): string {
+        return this.toIsoDate(new Date());
     }
 
     get timeSlots(): TimeSlot[] {
@@ -164,6 +186,10 @@ export class DashboardComponent implements OnInit {
         return this.userRole === ROLE_OWNER;
     }
 
+    get canUseDashboardDateNav(): boolean {
+        return this.userRole === ROLE_OWNER || this.userRole === ROLE_ADMIN;
+    }
+
     ngOnInit(): void {
         if (!this.currentHouse) {
             this.router.navigate(['/onboarding'], { replaceUrl: true });
@@ -204,11 +230,13 @@ export class DashboardComponent implements OnInit {
         this.error.set('');
 
         const userId = this.isAdmin ? (this.selectedUserId() ?? undefined) : user.id;
+        const dashboardDate = this.formatDashboardRequestDate(this.selectedDate());
 
-        this.api.getDashboard(house.id, userId).subscribe({
+        this.api.getDashboard(house.id, userId, dashboardDate).subscribe({
             next: (dashboard) => {
                 this.dashboard.set(dashboard);
                 this.loading.set(false);
+                setTimeout(() => this.scrollToRelevantSlot(), 80);
             },
             error: () => {
                 this.loading.set(false);
@@ -252,6 +280,53 @@ export class DashboardComponent implements OnInit {
             return;
         }
         this.selectedUserId.set(userId);
+        this.loadDashboard();
+    }
+
+    goToPreviousDate(): void {
+        this.shiftSelectedDate(-1);
+    }
+
+    goToNextDate(): void {
+        this.shiftSelectedDate(1);
+    }
+
+    goToToday(): void {
+        const today = new Date();
+        if (this.toIsoDate(this.selectedDate()) === this.toIsoDate(today)) {
+            return;
+        }
+
+        this.selectedDate.set(today);
+        this.loadDashboard();
+    }
+
+    openDashboardDatePicker(): void {
+        const input = this.dashboardDateInput?.nativeElement;
+        if (!input) {
+            return;
+        }
+
+        if (typeof input.showPicker === 'function') {
+            input.showPicker();
+            return;
+        }
+
+        input.click();
+    }
+
+    onDashboardDateSelected(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        if (!input.value) {
+            return;
+        }
+
+        const nextDate = new Date(`${input.value}T12:00:00`);
+        if (Number.isNaN(nextDate.getTime())) {
+            return;
+        }
+
+        this.selectedDate.set(nextDate);
         this.loadDashboard();
     }
 
@@ -840,6 +915,10 @@ export class DashboardComponent implements OnInit {
         return slot.hour;
     }
 
+    isCurrentHour(hour: number): boolean {
+        return this.isSelectedDateToday() && new Date().getHours() === hour;
+    }
+
     trackByTask(_: number, task: DashboardTaskInstanceResponse): number {
         return task.id;
     }
@@ -1353,5 +1432,85 @@ export class DashboardComponent implements OnInit {
 
     closeTaskImagePreview(): void {
         this.taskImagePreview.set(null);
+    }
+
+    scrollToCurrentHour(): void {
+        const slots = this.timeSlots;
+        if (!slots.length) return;
+
+        const now = new Date();
+        const currentHour = now.getHours();
+
+        // Prefer: slot at current hour with tasks, then next slot with tasks, then current hour, then next slot
+        const withTasks = slots.filter((s) => s.tasks.length > 0);
+        const target =
+            withTasks.find((s) => s.hour === currentHour) ??
+            withTasks.find((s) => s.hour > currentHour) ??
+            withTasks[withTasks.length - 1] ??
+            slots.find((s) => s.hour === currentHour) ??
+            slots.find((s) => s.hour > currentHour) ??
+            slots[0];
+
+        if (!target) return;
+
+        const el = document.getElementById(`slot-${target.hour}`);
+        if (!el) return;
+
+        const headerHeight = document.querySelector('.dashboard-header')?.getBoundingClientRect().height ?? 120;
+        const top = el.getBoundingClientRect().top + window.scrollY - headerHeight - 16;
+        window.scrollTo({ top, behavior: 'smooth' });
+    }
+
+    scrollToRelevantSlot(): void {
+        if (!this.tasks.length) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+
+        if (this.isSelectedDateToday()) {
+            this.scrollToCurrentHour();
+            return;
+        }
+
+        const firstSlot = this.timeSlots[0];
+        if (!firstSlot) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+
+        const el = document.getElementById(`slot-${firstSlot.hour}`);
+        if (!el) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+
+        const headerHeight = document.querySelector('.dashboard-header')?.getBoundingClientRect().height ?? 120;
+        const top = el.getBoundingClientRect().top + window.scrollY - headerHeight - 16;
+        window.scrollTo({ top, behavior: 'smooth' });
+    }
+
+    private isSelectedDateToday(): boolean {
+        return this.toIsoDate(this.selectedDate()) === this.toIsoDate(new Date());
+    }
+
+    private shiftSelectedDate(days: number): void {
+        const nextDate = new Date(this.selectedDate());
+        nextDate.setDate(nextDate.getDate() + days);
+        this.selectedDate.set(nextDate);
+        this.loadDashboard();
+    }
+
+    private formatDashboardRequestDate(date: Date): string {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}${month}${year}`;
+    }
+
+    private toIsoDate(date: Date): string {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     }
 }
