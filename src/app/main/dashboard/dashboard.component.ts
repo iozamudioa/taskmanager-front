@@ -66,7 +66,17 @@ export class DashboardComponent implements OnInit {
 
     @HostListener('window:scroll')
     onWindowScroll(): void {
-        this.headerCompact.set(window.scrollY > 56);
+        const scrollY = window.scrollY;
+        const isCompact = this.headerCompact();
+
+        if (!isCompact && scrollY > 96) {
+            this.headerCompact.set(true);
+            return;
+        }
+
+        if (isCompact && scrollY < 32) {
+            this.headerCompact.set(false);
+        }
     }
 
     showProfileModal = signal(false);
