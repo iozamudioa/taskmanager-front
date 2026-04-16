@@ -2,8 +2,8 @@
     <!-- Header -->
     <header class="dashboard-header">
         <div class="header-top">
-            <div class="header-avatar" (click)="openProfileModal()" title="Editar mi perfil" role="button"
-                tabindex="0" (keydown.enter)="openProfileModal()" (keydown.space)="openProfileModal()">
+            <div class="header-avatar" (click)="openProfileModal()" title="Editar mi perfil" role="button" tabindex="0"
+                (keydown.enter)="openProfileModal()" (keydown.space)="openProfileModal()">
                 @if (getCurrentUserImage()) {
                 <img [src]="getCurrentUserImage()" alt="Avatar de perfil" class="header-avatar-image" />
                 } @else {
@@ -537,11 +537,10 @@
                             [colorPicker]="taskForm.color || '#ede9fe'"
                             (colorPickerChange)="onCustomTaskColorChanged($event)"
                             (colorPickerSelect)="onCustomTaskColorAccepted($event)"
-                            (colorPickerCancel)="onCustomTaskColorCanceled()"
-                            [(cpToggle)]="taskColorPickerOpen" [cpOutputFormat]="'hex'"
-                            [cpPosition]="'auto'" [cpPresetColors]="colors" [cpDialogDisplay]="'popup'"
-                            [cpOKButton]="true" [cpCancelButton]="true" [cpSaveClickOutside]="false"
-                            [cpOKButtonText]="'Aceptar'" [cpCancelButtonText]="'Cancelar'"
+                            (colorPickerCancel)="onCustomTaskColorCanceled()" [(cpToggle)]="taskColorPickerOpen"
+                            [cpOutputFormat]="'hex'" [cpPosition]="'auto'" [cpPresetColors]="colors"
+                            [cpDialogDisplay]="'popup'" [cpOKButton]="true" [cpCancelButton]="true"
+                            [cpSaveClickOutside]="false" [cpOKButtonText]="'Aceptar'" [cpCancelButtonText]="'Cancelar'"
                             [cpOKButtonClass]="'tm-color-ok-btn'" [cpCancelButtonClass]="'tm-color-cancel-btn'"
                             [cpCloseClickOutside]="true" [cpUseRootViewContainer]="true">
                             🎨 Custom color
