@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, inject, OnInit, signal, ViewChild } from '@angular/core';
+import { Component, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ColorPickerDirective } from 'ngx-color-picker';
@@ -40,7 +40,7 @@ type ProfilePinContext = 'change' | 'reauth';
         '(window:keydown.escape)': 'onEscapeKey()',
     },
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
     private state = inject(AppStateService);
     private router = inject(Router);
     private api = inject(ApiService);
@@ -61,6 +61,7 @@ export class DashboardComponent implements OnInit {
     selectedUserId = signal<number | null>(null);
     showCreateModal = signal(false);
     selectedDate = signal(new Date());
+    currentClockMs = signal(Date.now());
     completingTaskIds = signal<Record<number, boolean>>({});
     deletingTaskIds = signal<Record<number, boolean>>({});
     creatingTask = signal(false);
@@ -129,6 +130,7 @@ export class DashboardComponent implements OnInit {
     private fireworksTimeout?: ReturnType<typeof setTimeout>;
     private todayPointsRaf?: number;
     private monthPointsRaf?: number;
+    private clockInterval?: ReturnType<typeof setInterval>;
     private lastAutoScrollContext?: string;
 
     get currentHouse() {
@@ -218,6 +220,8 @@ export class DashboardComponent implements OnInit {
             return;
         }
 
+        this.startClockTicker();
+
         if (this.shouldRequireRefreshPin()) {
             this.openRefreshPinModal();
             return;
@@ -227,6 +231,12 @@ export class DashboardComponent implements OnInit {
             this.selectedUserId.set(this.currentUser.id);
         }
         this.loadDashboardSession();
+    }
+
+    ngOnDestroy(): void {
+        if (this.clockInterval) {
+            clearInterval(this.clockInterval);
+        }
     }
 
     loadMembers(): void {
@@ -866,6 +876,33 @@ export class DashboardComponent implements OnInit {
         this.queueProfilePinCurrentFocus();
     }
 
+    private startClockTicker(): void {
+        this.currentClockMs.set(Date.now());
+        if (this.clockInterval) {
+            clearInterval(this.clockInterval);
+        }
+
+        this.clockInterval = setInterval(() => {
+            this.currentClockMs.set(Date.now());
+        }, 30000);
+    }
+
+    private toMinutesOfDay(value: string): number | null {
+        const [hourRaw, minuteRaw] = value.split(':');
+        const hour = Number.parseInt(hourRaw ?? '', 10);
+        const minute = Number.parseInt(minuteRaw ?? '', 10);
+
+        if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
+            return null;
+        }
+
+        if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+            return null;
+        }
+
+        return hour * 60 + minute;
+    }
+
     private loadDashboardSession(): void {
         this.loadMembers();
         this.loadDashboard();
@@ -1183,7 +1220,7 @@ export class DashboardComponent implements OnInit {
     }
 
     getCurrentTimeAmPm(): string {
-        const now = new Date();
+        const now = new Date(this.currentClockMs());
         return now.toLocaleTimeString('es-MX', {
             hour: 'numeric',
             minute: '2-digit',
@@ -1284,6 +1321,78 @@ export class DashboardComponent implements OnInit {
         return `${time}${duration}`;
     }
 
+    shouldShowTaskProgress(task: DashboardTaskInstanceResponse): boolean {
+        if (!this.isSelectedDateToday()) {
+            return false;
+        }
+
+        const duration = task.durationMinutes ?? 0;
+        if (!task.startTime || duration <= 0) {
+            return false;
+        }
+
+        const now = new Date(this.currentClockMs());
+        const startMinutes = this.toMinutesOfDay(task.startTime);
+        if (startMinutes === null) {
+            return false;
+        }
+
+        return Math.floor(startMinutes / 60) === now.getHours();
+    }
+
+    getTaskProgressPercent(task: DashboardTaskInstanceResponse): number {
+        if (task.completed) {
+            return 100;
+        }
+
+        const duration = task.durationMinutes ?? 0;
+        if (!task.startTime || duration <= 0) {
+            return 0;
+        }
+
+        const startMinutes = this.toMinutesOfDay(task.startTime);
+        if (startMinutes === null) {
+            return 0;
+        }
+
+        const now = new Date(this.currentClockMs());
+        const nowMinutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+        const elapsed = nowMinutes - startMinutes;
+        const percent = (elapsed / duration) * 100;
+
+        return Math.max(0, Math.min(100, percent));
+    }
+
+    getTaskProgressText(task: DashboardTaskInstanceResponse): string {
+        const duration = task.durationMinutes ?? 0;
+        if (!task.startTime || duration <= 0) {
+            return '';
+        }
+
+        if (task.completed) {
+            return `${duration}m / ${duration}m · faltan 0m`;
+        }
+
+        const startMinutes = this.toMinutesOfDay(task.startTime);
+        if (startMinutes === null) {
+            return '';
+        }
+
+        const now = new Date(this.currentClockMs());
+        const nowMinutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+        const elapsed = Math.max(0, Math.min(duration, Math.floor(nowMinutes - startMinutes)));
+        const remaining = Math.max(0, duration - elapsed);
+
+        return `${elapsed}m / ${duration}m · faltan ${remaining}m`;
+    }
+
+    getTaskProgressColorClass(task: DashboardTaskInstanceResponse): string {
+        const pct = this.getTaskProgressPercent(task);
+        if (pct >= 80) return 'task-progress-fill--red';
+        if (pct >= 50) return 'task-progress-fill--yellow';
+        return 'task-progress-fill--green';
+    }
+
     logout(): void {
         this.state.setCurrentUser(null);
         this.router.navigate(['/onboarding/select-user'], { replaceUrl: true });
@@ -1303,7 +1412,8 @@ export class DashboardComponent implements OnInit {
     }
 
     isCurrentHour(hour: number): boolean {
-        return this.isSelectedDateToday() && new Date().getHours() === hour;
+        const now = new Date(this.currentClockMs());
+        return this.isSelectedDateToday() && now.getHours() === hour;
     }
 
     isPastHourWithPendingTasks(slot: TimeSlot): boolean {
@@ -1311,7 +1421,8 @@ export class DashboardComponent implements OnInit {
             return false;
         }
 
-        const currentHour = new Date().getHours();
+        const now = new Date(this.currentClockMs());
+        const currentHour = now.getHours();
         if (slot.hour >= currentHour) {
             return false;
         }
