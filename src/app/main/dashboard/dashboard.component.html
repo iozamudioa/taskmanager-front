@@ -211,7 +211,7 @@
     }
 
     @if (showAlertModal()) {
-    <div class="modal-backdrop centered" (click)="closeAlertModal()">
+    <div class="modal-backdrop centered alert-backdrop" (click)="closeAlertModal()">
         <div class="modal-content alert-modal" (click)="$event.stopPropagation()">
             <div class="modal-header">
                 <h2 class="modal-title">{{ alertModalTitle() }}</h2>
@@ -294,6 +294,8 @@
 
                 <div class="modal-actions">
                     <button class="btn-cancel" type="button" (click)="closeProfileModal()">Cancelar</button>
+                    <button class="btn-pin-change" type="button" (click)="openProfilePinModal()"
+                        [disabled]="savingProfile()">Cambiar PIN</button>
                     <button class="btn-submit" type="submit" [disabled]="savingProfile()">
                         @if (savingProfile()) {
                         <span class="spinner"></span> Guardando...
@@ -303,6 +305,152 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+    }
+
+    @if (showProfilePinModal()) {
+    <div class="modal-backdrop centered profile-pin-backdrop" (click)="closeProfilePinModal()">
+        <div class="modal-content profile-pin-modal" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+                <h2 class="modal-title">{{ getProfilePinModalTitle() }}</h2>
+                <button class="modal-close" (click)="closeProfilePinModal()"
+                    [disabled]="profilePinSubmitting()">×</button>
+            </div>
+
+            <div class="modal-form">
+                @if (profilePinMode() === 'validate') {
+                <div class="profile-pin-input-group">
+                    <div class="profile-pin-input-wrapper">
+                        <div class="profile-pin-visual-input" (click)="focusProfilePinCurrentInput()">
+                            <input #profilePinCurrentInput class="profile-pin-hidden-input"
+                                [type]="showProfilePinCurrent ? 'tel' : 'password'" [value]="profilePinCurrent"
+                                (input)="updateProfilePinCurrent(($any($event.target)).value)"
+                                (keydown.enter)="onProfilePinEnter()" inputmode="numeric" pattern="[0-9]*"
+                                autocomplete="one-time-code" [attr.maxlength]="pinSlotCount"
+                                [disabled]="profilePinSubmitting() || profilePinMode() !== 'validate'"
+                                [attr.enterkeyhint]="profilePinMode() === 'validate' ? 'next' : 'done'" />
+
+                            <div class="profile-pin-slots" [style.--pin-slot-count]="pinSlotCount" aria-hidden="true">
+                                @for (slot of getProfilePinSlots(profilePinCurrent); track $index) {
+                                <span class="profile-pin-slot" [class.profile-pin-slot-filled]="!!slot">
+                                    {{ getProfilePinSlotDisplay(slot, showProfilePinCurrent) }}
+                                </span>
+                                }
+                            </div>
+                        </div>
+
+                        <button type="button" class="profile-pin-toggle profile-pin-icon-toggle"
+                            (click)="toggleProfilePinCurrentVisibility()" [disabled]="profilePinSubmitting()"
+                            [attr.aria-label]="showProfilePinCurrent ? 'Ocultar PIN actual' : 'Mostrar PIN actual'">
+                            @if (showProfilePinCurrent) {
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path
+                                    d="M3.53 2.47 2.47 3.53l3 3C3.56 8.06 2.25 9.9 1.5 12c1.73 4.39 5.95 7.5 10.5 7.5 2.04 0 4.01-.63 5.66-1.71l2.81 2.81 1.06-1.06ZM9.7 10.76l3.54 3.54A2.5 2.5 0 0 1 9.7 10.76Zm7.67 4.84-1.64-1.64c.17-.45.27-.94.27-1.46A4 4 0 0 0 10.04 8.8L8.31 7.07A8.94 8.94 0 0 1 12 6.5c4.55 0 8.77 3.11 10.5 7.5-.75 2.1-2.06 3.94-3.88 5.28l-1.25-1.25Zm-5.2-9.1c-1.14 0-2.23.2-3.25.57l1.55 1.55A4 4 0 0 1 16 12c0 .35-.05.68-.13 1l1.77 1.77c1.34-1.03 2.36-2.43 2.86-4.03-1.4-2.63-4.07-4.24-7.33-4.24Z" />
+                            </svg>
+                            } @else {
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path
+                                    d="M12 5c4.55 0 8.77 3.11 10.5 7.5C20.77 16.89 16.55 20 12 20S3.23 16.89 1.5 12.5C3.23 8.11 7.45 5 12 5Zm0 2C8.69 7 5.59 9.11 4.11 12.5 5.59 15.89 8.69 18 12 18s6.41-2.11 7.89-5.5C18.41 9.11 15.31 7 12 7Zm0 2.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Zm0 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z" />
+                            </svg>
+                            }
+                        </button>
+                    </div>
+                </div>
+                }
+
+                @if (profilePinMode() === 'setup') {
+                <div class="profile-pin-input-group">
+                    <p class="profile-pin-label">Escribe tu nuevo PIN</p>
+                    <div class="profile-pin-input-wrapper">
+                        <div class="profile-pin-visual-input" (click)="focusProfilePinNewInput()">
+                            <input #profilePinNewInput class="profile-pin-hidden-input"
+                                [type]="showProfilePinNew ? 'tel' : 'password'" [value]="profilePinNew"
+                                (input)="updateProfilePinNew(($any($event.target)).value)"
+                                (keydown.enter)="onProfilePinEnter()" inputmode="numeric" pattern="[0-9]*"
+                                autocomplete="one-time-code" [attr.maxlength]="pinSlotCount"
+                                [disabled]="profilePinSubmitting()" enterkeyhint="next" />
+
+                            <div class="profile-pin-slots" [style.--pin-slot-count]="pinSlotCount" aria-hidden="true">
+                                @for (slot of getProfilePinSlots(profilePinNew); track $index) {
+                                <span class="profile-pin-slot" [class.profile-pin-slot-filled]="!!slot">
+                                    {{ getProfilePinSlotDisplay(slot, showProfilePinNew) }}
+                                </span>
+                                }
+                            </div>
+                        </div>
+
+                        <button type="button" class="profile-pin-toggle profile-pin-icon-toggle"
+                            (click)="toggleProfilePinNewVisibility()" [disabled]="profilePinSubmitting()"
+                            [attr.aria-label]="showProfilePinNew ? 'Ocultar PIN nuevo' : 'Mostrar PIN nuevo'">
+                            @if (showProfilePinNew) {
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path
+                                    d="M3.53 2.47 2.47 3.53l3 3C3.56 8.06 2.25 9.9 1.5 12c1.73 4.39 5.95 7.5 10.5 7.5 2.04 0 4.01-.63 5.66-1.71l2.81 2.81 1.06-1.06ZM9.7 10.76l3.54 3.54A2.5 2.5 0 0 1 9.7 10.76Zm7.67 4.84-1.64-1.64c.17-.45.27-.94.27-1.46A4 4 0 0 0 10.04 8.8L8.31 7.07A8.94 8.94 0 0 1 12 6.5c4.55 0 8.77 3.11 10.5 7.5-.75 2.1-2.06 3.94-3.88 5.28l-1.25-1.25Zm-5.2-9.1c-1.14 0-2.23.2-3.25.57l1.55 1.55A4 4 0 0 1 16 12c0 .35-.05.68-.13 1l1.77 1.77c1.34-1.03 2.36-2.43 2.86-4.03-1.4-2.63-4.07-4.24-7.33-4.24Z" />
+                            </svg>
+                            } @else {
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path
+                                    d="M12 5c4.55 0 8.77 3.11 10.5 7.5C20.77 16.89 16.55 20 12 20S3.23 16.89 1.5 12.5C3.23 8.11 7.45 5 12 5Zm0 2C8.69 7 5.59 9.11 4.11 12.5 5.59 15.89 8.69 18 12 18s6.41-2.11 7.89-5.5C18.41 9.11 15.31 7 12 7Zm0 2.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Zm0 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z" />
+                            </svg>
+                            }
+                        </button>
+                    </div>
+                </div>
+
+                <div class="profile-pin-input-group">
+                    <p class="profile-pin-label">Confirma tu nuevo PIN</p>
+                    <div class="profile-pin-input-wrapper">
+                        <div class="profile-pin-visual-input" (click)="focusProfilePinConfirmInput()">
+                            <input #profilePinConfirmInput class="profile-pin-hidden-input"
+                                [type]="showProfilePinConfirm ? 'tel' : 'password'" [value]="profilePinConfirm"
+                                (input)="updateProfilePinConfirm(($any($event.target)).value)"
+                                (keydown.enter)="onProfilePinEnter()" inputmode="numeric" pattern="[0-9]*"
+                                autocomplete="one-time-code" [attr.maxlength]="pinSlotCount"
+                                [disabled]="profilePinSubmitting()" enterkeyhint="done" />
+
+                            <div class="profile-pin-slots" [style.--pin-slot-count]="pinSlotCount" aria-hidden="true">
+                                @for (slot of getProfilePinSlots(profilePinConfirm); track $index) {
+                                <span class="profile-pin-slot" [class.profile-pin-slot-filled]="!!slot">
+                                    {{ getProfilePinSlotDisplay(slot, showProfilePinConfirm) }}
+                                </span>
+                                }
+                            </div>
+                        </div>
+
+                        <button type="button" class="profile-pin-toggle profile-pin-icon-toggle"
+                            (click)="toggleProfilePinConfirmVisibility()" [disabled]="profilePinSubmitting()"
+                            [attr.aria-label]="showProfilePinConfirm ? 'Ocultar confirmación de PIN' : 'Mostrar confirmación de PIN'">
+                            @if (showProfilePinConfirm) {
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path
+                                    d="M3.53 2.47 2.47 3.53l3 3C3.56 8.06 2.25 9.9 1.5 12c1.73 4.39 5.95 7.5 10.5 7.5 2.04 0 4.01-.63 5.66-1.71l2.81 2.81 1.06-1.06ZM9.7 10.76l3.54 3.54A2.5 2.5 0 0 1 9.7 10.76Zm7.67 4.84-1.64-1.64c.17-.45.27-.94.27-1.46A4 4 0 0 0 10.04 8.8L8.31 7.07A8.94 8.94 0 0 1 12 6.5c4.55 0 8.77 3.11 10.5 7.5-.75 2.1-2.06 3.94-3.88 5.28l-1.25-1.25Zm-5.2-9.1c-1.14 0-2.23.2-3.25.57l1.55 1.55A4 4 0 0 1 16 12c0 .35-.05.68-.13 1l1.77 1.77c1.34-1.03 2.36-2.43 2.86-4.03-1.4-2.63-4.07-4.24-7.33-4.24Z" />
+                            </svg>
+                            } @else {
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path
+                                    d="M12 5c4.55 0 8.77 3.11 10.5 7.5C20.77 16.89 16.55 20 12 20S3.23 16.89 1.5 12.5C3.23 8.11 7.45 5 12 5Zm0 2C8.69 7 5.59 9.11 4.11 12.5 5.59 15.89 8.69 18 12 18s6.41-2.11 7.89-5.5C18.41 9.11 15.31 7 12 7Zm0 2.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Zm0 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z" />
+                            </svg>
+                            }
+                        </button>
+                    </div>
+                </div>
+                }
+
+                @if (profilePinError()) {
+                <p class="error-msg profile-pin-error">{{ profilePinError() }}</p>
+                }
+
+                <div class="modal-actions">
+                    <button class="btn-cancel" type="button" (click)="closeProfilePinModal()"
+                        [disabled]="profilePinSubmitting()">Cancelar</button>
+                    <button class="btn-submit" type="button" (click)="submitProfilePinChange()"
+                        [disabled]="profilePinSubmitting()">
+                        {{ profilePinSubmitting() ? (profilePinMode() === 'setup' ? 'Guardando...' : 'Validando...') :
+                        getProfilePinActionText() }}
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
     }

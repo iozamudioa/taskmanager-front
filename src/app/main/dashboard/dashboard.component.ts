@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ColorPickerDirective } from 'ngx-color-picker';
 import { ImageCroppedEvent, ImageCropperComponent } from 'ngx-image-cropper';
+import { catchError, firstValueFrom, of } from 'rxjs';
 import { HouseMemberResponse, ROLE_ADMIN, ROLE_OWNER, roleName } from '../../core/models/house.model';
 import { DashboardResponse, DashboardTaskInstanceResponse } from '../../core/models/task-instance.model';
 import { CreateTaskRequest, RECURRENCE_DAYS, RecurrenceDay, UpdateTaskRequest } from '../../core/models/task.model';
@@ -25,6 +26,8 @@ interface FireworkParticle {
     hue: number;
     delay: number;
 }
+
+type ProfilePinMode = 'validate' | 'setup';
 
 @Component({
     selector: 'app-dashboard',
@@ -69,6 +72,17 @@ export class DashboardComponent implements OnInit {
     profileForm: { name: string; image?: string } = { name: '', image: undefined };
     profileImageFile = signal<File | undefined>(undefined);
     profileCroppedImage = signal<string | undefined>(undefined);
+    readonly pinSlotCount = 4;
+    showProfilePinModal = signal(false);
+    profilePinMode = signal<ProfilePinMode>('validate');
+    profilePinSubmitting = signal(false);
+    profilePinError = signal('');
+    profilePinCurrent = '';
+    profilePinNew = '';
+    profilePinConfirm = '';
+    showProfilePinCurrent = false;
+    showProfilePinNew = false;
+    showProfilePinConfirm = false;
 
     showAlertModal = signal(false);
     alertModalTitle = signal('Aviso');
@@ -100,6 +114,9 @@ export class DashboardComponent implements OnInit {
     recurrenceDays = RECURRENCE_DAYS;
     @ViewChild('titleInput') titleInput?: ElementRef<HTMLInputElement>;
     @ViewChild('dashboardDateInput') dashboardDateInput?: ElementRef<HTMLInputElement>;
+    @ViewChild('profilePinCurrentInput') profilePinCurrentInput?: ElementRef<HTMLInputElement>;
+    @ViewChild('profilePinNewInput') profilePinNewInput?: ElementRef<HTMLInputElement>;
+    @ViewChild('profilePinConfirmInput') profilePinConfirmInput?: ElementRef<HTMLInputElement>;
 
     taskForm: CreateTaskRequest = this.getDefaultTaskForm();
 
@@ -353,6 +370,7 @@ export class DashboardComponent implements OnInit {
         this.profileImageFile.set(undefined);
         this.profileCroppedImage.set(undefined);
         this.savingProfile.set(false);
+        this.resetProfilePinFlow();
         this.showProfileModal.set(true);
     }
 
@@ -362,6 +380,208 @@ export class DashboardComponent implements OnInit {
         this.profileError.set('');
         this.profileImageFile.set(undefined);
         this.profileCroppedImage.set(undefined);
+        this.resetProfilePinFlow();
+    }
+
+    openProfilePinModal(): void {
+        if (!this.currentUser) {
+            return;
+        }
+
+        this.resetProfilePinFlow();
+        this.showProfilePinModal.set(true);
+        this.queueProfilePinCurrentFocus();
+    }
+
+    closeProfilePinModal(): void {
+        if (this.profilePinSubmitting()) {
+            return;
+        }
+
+        this.resetProfilePinFlow();
+    }
+
+    updateProfilePinCurrent(value: string): void {
+        this.profilePinCurrent = this.normalizePinValue(value);
+
+        if (this.profilePinMode() === 'validate' && this.profilePinCurrent.length === this.pinSlotCount && !this.profilePinSubmitting()) {
+            void this.submitProfilePinChange();
+        }
+    }
+
+    updateProfilePinNew(value: string): void {
+        this.profilePinNew = this.normalizePinValue(value);
+
+        if (this.profilePinMode() === 'setup' && this.profilePinNew.length === this.pinSlotCount && !this.profilePinConfirm) {
+            this.queueProfilePinConfirmFocus();
+        }
+    }
+
+    updateProfilePinConfirm(value: string): void {
+        this.profilePinConfirm = this.normalizePinValue(value);
+
+        if (this.profilePinMode() === 'setup' && this.profilePinConfirm.length === this.pinSlotCount && !this.profilePinSubmitting()) {
+            void this.submitProfilePinChange();
+        }
+    }
+
+    onProfilePinEnter(): void {
+        if (!this.profilePinSubmitting()) {
+            void this.submitProfilePinChange();
+        }
+    }
+
+    getProfilePinModalTitle(): string {
+        return this.profilePinMode() === 'setup' ? 'Configurar PIN nuevo' : 'Ingresa tu PIN actual';
+    }
+
+    getProfilePinActionText(): string {
+        return this.profilePinMode() === 'setup' ? 'Guardar PIN' : 'Continuar';
+    }
+
+    getProfilePinSlots(value: string): string[] {
+        return Array.from({ length: this.pinSlotCount }, (_, index) => value[index] ?? '');
+    }
+
+    getProfilePinSlotDisplay(value: string, isVisible: boolean): string {
+        if (!value) {
+            return '–';
+        }
+
+        return isVisible ? value : '●';
+    }
+
+    focusProfilePinCurrentInput(): void {
+        this.profilePinCurrentInput?.nativeElement.focus();
+    }
+
+    focusProfilePinNewInput(): void {
+        this.profilePinNewInput?.nativeElement.focus();
+    }
+
+    focusProfilePinConfirmInput(): void {
+        this.profilePinConfirmInput?.nativeElement.focus();
+    }
+
+    toggleProfilePinCurrentVisibility(): void {
+        this.showProfilePinCurrent = !this.showProfilePinCurrent;
+    }
+
+    toggleProfilePinNewVisibility(): void {
+        this.showProfilePinNew = !this.showProfilePinNew;
+    }
+
+    toggleProfilePinConfirmVisibility(): void {
+        this.showProfilePinConfirm = !this.showProfilePinConfirm;
+    }
+
+    async submitProfilePinChange(): Promise<void> {
+        const user = this.currentUser;
+        if (!user) {
+            this.profilePinError.set('No se pudo identificar el usuario actual.');
+            return;
+        }
+
+        if (this.profilePinMode() === 'validate') {
+            if (!this.profilePinCurrent) {
+                this.profilePinError.set('Ingresa tu PIN actual.');
+                this.queueProfilePinCurrentFocus();
+                return;
+            }
+
+            if (this.profilePinCurrent.length !== this.pinSlotCount) {
+                this.profilePinError.set(`El PIN actual debe tener ${this.pinSlotCount} números.`);
+                this.queueProfilePinCurrentFocus();
+                return;
+            }
+        } else {
+            if (!this.profilePinNew || this.profilePinNew.length !== this.pinSlotCount) {
+                this.profilePinError.set(`El PIN nuevo debe tener ${this.pinSlotCount} números.`);
+                this.queueProfilePinNewFocus();
+                return;
+            }
+
+            if (!this.profilePinConfirm || this.profilePinConfirm.length !== this.pinSlotCount) {
+                this.profilePinError.set(`Confirma los ${this.pinSlotCount} números del PIN.`);
+                this.queueProfilePinConfirmFocus();
+                return;
+            }
+
+            if (this.profilePinNew !== this.profilePinConfirm) {
+                this.profilePinError.set('Los PIN no coinciden.');
+                this.queueProfilePinConfirmFocus();
+                return;
+            }
+        }
+
+        this.profilePinSubmitting.set(true);
+        this.profilePinError.set('');
+
+        if (this.profilePinMode() === 'validate') {
+            const response = await firstValueFrom(
+                this.api.validatePin({
+                    userId: user.id,
+                    pin: this.profilePinCurrent,
+                }).pipe(
+                    catchError(() =>
+                        of({
+                            valid: false,
+                            code: 'PIN_VALIDATION_FAILED',
+                            message: 'No se pudo validar el PIN.',
+                            requiresPinSetup: false,
+                        })
+                    )
+                )
+            );
+
+            if (response.valid || response.requiresPinSetup || response.code === 'PIN_SETUP_REQUIRED') {
+                this.profilePinMode.set('setup');
+                this.profilePinNew = '';
+                this.profilePinConfirm = '';
+                this.profilePinSubmitting.set(false);
+                this.profilePinError.set('');
+                this.queueProfilePinNewFocus();
+                return;
+            }
+
+            if (response.code === 'UNAUTHORIZED') {
+                this.profilePinError.set(response.message ?? 'Sesión no autorizada.');
+                this.profilePinSubmitting.set(false);
+                return;
+            }
+
+            this.profilePinCurrent = '';
+            this.profilePinError.set('PIN actual incorrecto.');
+            this.profilePinSubmitting.set(false);
+            this.queueProfilePinCurrentFocus();
+            return;
+        }
+
+        const createResponse = await firstValueFrom(
+            this.api.createPin({
+                userId: user.id,
+                pin: this.profilePinNew,
+                confirmPin: this.profilePinConfirm,
+            }).pipe(
+                catchError(() =>
+                    of({
+                        success: false,
+                        code: 'PIN_CREATE_FAILED',
+                        message: 'No se pudo actualizar el PIN. Intenta de nuevo.',
+                    })
+                )
+            )
+        );
+
+        if (!createResponse.success) {
+            this.profilePinError.set(createResponse.message ?? 'No se pudo actualizar el PIN. Intenta de nuevo.');
+            this.profilePinSubmitting.set(false);
+            return;
+        }
+
+        this.profilePinSubmitting.set(false);
+        this.resetProfilePinFlow();
+        this.openInfoModal('PIN actualizado', 'Tu PIN se actualizó correctamente.');
     }
 
     async onProfileGalleryImageSelected(event: Event): Promise<void> {
@@ -549,6 +769,41 @@ export class DashboardComponent implements OnInit {
         const sanitized = image.split('?')[0].split('#')[0];
         const parts = sanitized.split('/').filter(Boolean);
         return parts.length ? parts[parts.length - 1] : image;
+    }
+
+    private resetProfilePinFlow(): void {
+        this.showProfilePinModal.set(false);
+        this.profilePinMode.set('validate');
+        this.profilePinSubmitting.set(false);
+        this.profilePinError.set('');
+        this.profilePinCurrent = '';
+        this.profilePinNew = '';
+        this.profilePinConfirm = '';
+        this.showProfilePinCurrent = false;
+        this.showProfilePinNew = false;
+        this.showProfilePinConfirm = false;
+    }
+
+    private normalizePinValue(value: string): string {
+        return value.replace(/\D/g, '').slice(0, this.pinSlotCount);
+    }
+
+    private queueProfilePinCurrentFocus(): void {
+        setTimeout(() => {
+            this.focusProfilePinCurrentInput();
+        }, 60);
+    }
+
+    private queueProfilePinNewFocus(): void {
+        setTimeout(() => {
+            this.focusProfilePinNewInput();
+        }, 60);
+    }
+
+    private queueProfilePinConfirmFocus(): void {
+        setTimeout(() => {
+            this.focusProfilePinConfirmInput();
+        }, 60);
     }
 
     private applyUpdatedUser(updatedUser: HouseUserResponse['user']): void {
