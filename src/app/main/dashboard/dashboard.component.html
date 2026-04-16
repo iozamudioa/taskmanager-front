@@ -186,7 +186,10 @@
                             <div class="task-progress-wrap" aria-label="Progreso de tiempo de la tarea actual">
                                 <div class="task-progress-track" role="progressbar" aria-valuemin="0"
                                     aria-valuemax="100" [attr.aria-valuenow]="getTaskProgressPercent(task)">
-                                    <span class="task-progress-fill" [class]="getTaskProgressColorClass(task)"
+                                    <span class="task-progress-fill"
+                                        [class.task-progress-fill--green]="getTaskProgressColorClass(task) === 'task-progress-fill--green'"
+                                        [class.task-progress-fill--yellow]="getTaskProgressColorClass(task) === 'task-progress-fill--yellow'"
+                                        [class.task-progress-fill--red]="getTaskProgressColorClass(task) === 'task-progress-fill--red'"
                                         [style.width.%]="getTaskProgressPercent(task)"></span>
                                 </div>
                                 <span class="task-progress-text">{{ getTaskProgressText(task) }}</span>

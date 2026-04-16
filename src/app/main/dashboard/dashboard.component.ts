@@ -1322,6 +1322,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
 
     shouldShowTaskProgress(task: DashboardTaskInstanceResponse): boolean {
+        if (task.completed) {
+            return false;
+        }
+
         if (!this.isSelectedDateToday()) {
             return false;
         }
@@ -1337,7 +1341,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
             return false;
         }
 
-        return Math.floor(startMinutes / 60) === now.getHours();
+        return Math.floor(startMinutes / 60) <= now.getHours();
     }
 
     getTaskProgressPercent(task: DashboardTaskInstanceResponse): number {
@@ -1387,6 +1391,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
 
     getTaskProgressColorClass(task: DashboardTaskInstanceResponse): string {
+        const startMinutes = this.toMinutesOfDay(task.startTime ?? '');
+        if (startMinutes !== null) {
+            const now = new Date(this.currentClockMs());
+            if (Math.floor(startMinutes / 60) < now.getHours()) {
+                return 'task-progress-fill--red';
+            }
+        }
+
         const pct = this.getTaskProgressPercent(task);
         if (pct >= 80) return 'task-progress-fill--red';
         if (pct >= 50) return 'task-progress-fill--yellow';
