@@ -66,6 +66,13 @@ export class DashboardComponent implements OnInit {
 
     @HostListener('window:scroll')
     onWindowScroll(): void {
+        if (this.getMaxScrollableY() <= 140) {
+            if (this.headerCompact()) {
+                this.headerCompact.set(false);
+            }
+            return;
+        }
+
         const scrollY = window.scrollY;
         const isCompact = this.headerCompact();
 
@@ -815,6 +822,21 @@ export class DashboardComponent implements OnInit {
         return username ? `@${username}` : 'Sin usuario';
     }
 
+    getCurrentHeaderIdentity(): string {
+        const username = this.currentUser?.username?.trim() || 'usuario';
+        const houseName = this.currentHouse?.name?.trim() || 'casa';
+        return `${username}@${houseName}`;
+    }
+
+    getCurrentTimeAmPm(): string {
+        const now = new Date();
+        return now.toLocaleTimeString('es-MX', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+        });
+    }
+
     getTodayPoints(): number {
         return this.animatedTodayPoints();
     }
@@ -1469,12 +1491,12 @@ export class DashboardComponent implements OnInit {
 
         const headerHeight = document.querySelector('.dashboard-header')?.getBoundingClientRect().height ?? 120;
         const top = el.getBoundingClientRect().top + window.scrollY - headerHeight - 16;
-        window.scrollTo({ top, behavior: 'smooth' });
+        this.scrollWindowTo(top);
     }
 
     scrollToRelevantSlot(): void {
         if (!this.tasks.length) {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            this.scrollWindowTo(0);
             return;
         }
 
@@ -1485,19 +1507,45 @@ export class DashboardComponent implements OnInit {
 
         const firstSlot = this.timeSlots[0];
         if (!firstSlot) {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            this.scrollWindowTo(0);
             return;
         }
 
         const el = document.getElementById(`slot-${firstSlot.hour}`);
         if (!el) {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            this.scrollWindowTo(0);
             return;
         }
 
         const headerHeight = document.querySelector('.dashboard-header')?.getBoundingClientRect().height ?? 120;
         const top = el.getBoundingClientRect().top + window.scrollY - headerHeight - 16;
-        window.scrollTo({ top, behavior: 'smooth' });
+        this.scrollWindowTo(top);
+    }
+
+    private scrollWindowTo(targetTop: number): void {
+        const maxScrollable = this.getMaxScrollableY();
+        if (maxScrollable <= 140) {
+            this.headerCompact.set(false);
+            return;
+        }
+
+        const boundedTop = Math.max(0, Math.min(targetTop, maxScrollable));
+        const distance = Math.abs(window.scrollY - boundedTop);
+        if (distance < 12) {
+            return;
+        }
+
+        if (distance < 120) {
+            window.scrollTo({ top: boundedTop, behavior: 'auto' });
+            return;
+        }
+
+        window.scrollTo({ top: boundedTop, behavior: 'smooth' });
+    }
+
+    private getMaxScrollableY(): number {
+        const doc = document.documentElement;
+        return Math.max(0, doc.scrollHeight - window.innerHeight);
     }
 
     private autoScrollToRelevantSlotIfNeeded(): void {

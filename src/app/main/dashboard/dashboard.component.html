@@ -11,12 +11,12 @@
                 }
             </div>
             <div class="house-info">
-                <h1 class="house-name">{{ currentHouse?.name }} 🏠</h1>
-                <p class="header-date">{{ formatDate(selectedDate()) }}</p>
+                <h1 class="house-name">{{ getCurrentHeaderIdentity() }}</h1>
+                <p class="header-date">{{ formatDate(selectedDate()) }} · {{ getCurrentTimeAmPm() }}</p>
                 <div class="session-indicator" title="Usuario con sesión activa en esta pantalla">
-                    <span class="session-label">Sesión:</span>
-                    <span class="session-user">{{ getCurrentSessionLabel() }}</span>
+                    @if (isAdmin){
                     <span class="session-role">{{ getCurrentUserRoleLabel() }}</span>
+                    }
                     <span class="session-points" [class.points-bump]="pointsPulse()" title="Puntos de hoy">
                         ⭐ Hoy: <strong>{{ getTodayPoints() }}</strong>
                     </span>
@@ -48,10 +48,6 @@
                 @{{ member.user.username }}
             </button>
             }
-            } @else {
-            <button class="user-tab active" type="button">
-                Mis tareas (@{{ getCurrentUsername() }})
-            </button>
             }
         </div>
     </header>
