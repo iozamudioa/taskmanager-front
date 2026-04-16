@@ -123,6 +123,7 @@ export class DashboardComponent implements OnInit {
     private fireworksTimeout?: ReturnType<typeof setTimeout>;
     private todayPointsRaf?: number;
     private monthPointsRaf?: number;
+    private lastAutoScrollContext?: string;
 
     get currentHouse() {
         return this.state.currentHouse();
@@ -246,7 +247,7 @@ export class DashboardComponent implements OnInit {
             next: (dashboard) => {
                 this.dashboard.set(dashboard);
                 this.loading.set(false);
-                setTimeout(() => this.scrollToRelevantSlot(), 80);
+                setTimeout(() => this.autoScrollToRelevantSlotIfNeeded(), 80);
             },
             error: () => {
                 this.loading.set(false);
@@ -1497,6 +1498,16 @@ export class DashboardComponent implements OnInit {
         const headerHeight = document.querySelector('.dashboard-header')?.getBoundingClientRect().height ?? 120;
         const top = el.getBoundingClientRect().top + window.scrollY - headerHeight - 16;
         window.scrollTo({ top, behavior: 'smooth' });
+    }
+
+    private autoScrollToRelevantSlotIfNeeded(): void {
+        const context = `${this.formatDashboardRequestDate(this.selectedDate())}|${this.selectedUserId() ?? 'all'}`;
+        if (this.lastAutoScrollContext === context) {
+            return;
+        }
+
+        this.lastAutoScrollContext = context;
+        this.scrollToRelevantSlot();
     }
 
     private isSelectedDateToday(): boolean {
