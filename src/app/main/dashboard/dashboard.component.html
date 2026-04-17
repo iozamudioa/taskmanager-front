@@ -122,7 +122,8 @@
 
                     <div class="tasks-in-slot">
                         @for (task of slot.tasks; track trackByTask($index, task)) {
-                        <div class="task-card" [class.completed]="task.completed" [class.has-image]="!!task.image">
+                        <div class="task-card" [attr.id]="'task-' + task.id" [class.completed]="task.completed"
+                            [class.has-image]="!!task.image">
                             <div class="card-visual" [ngStyle]="getTaskBackgroundColor(task)">
                                 @if (task.image) {
                                 <img [src]="task.image" [alt]="task.title" class="card-image card-image-clickable"

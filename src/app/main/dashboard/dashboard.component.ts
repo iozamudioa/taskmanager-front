@@ -2018,6 +2018,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
             return;
         }
 
+        const firstPendingTask = this.timeSlots.flatMap((slot) => slot.tasks).find((task) => !task.completed);
+        if (firstPendingTask) {
+            const firstPendingTaskEl = document.getElementById(`task-${firstPendingTask.id}`);
+            if (firstPendingTaskEl) {
+                const headerHeight = document.querySelector('.dashboard-header')?.getBoundingClientRect().height ?? 120;
+                const top = firstPendingTaskEl.getBoundingClientRect().top + window.scrollY - headerHeight - 16;
+                this.scrollWindowTo(top);
+                return;
+            }
+        }
+
         const targetSlot =
             this.timeSlots.find((slot) => slot.tasks.some((task) => !task.completed)) ??
             this.timeSlots.find((slot) => slot.tasks.length > 0) ??
