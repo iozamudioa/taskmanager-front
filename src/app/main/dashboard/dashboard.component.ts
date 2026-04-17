@@ -62,6 +62,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     pointsPulse = signal(false);
     showScreenFireworks = signal(false);
     screenFireworks = signal<FireworkParticle[]>([]);
+    showAllCompletedMessage = signal(false);
 
     selectedUserId = signal<number | null>(null);
     showCreateModal = signal(false);
@@ -139,6 +140,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private inactivityTimeout?: ReturnType<typeof setTimeout>;
     private lastActivityEventAt = 0;
     private lastAutoScrollContext?: string;
+    private lastCompletionCelebrationContext?: string;
     private readonly inactivityTimeoutMs = 60_000;
 
     get currentHouse() {
@@ -287,6 +289,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.api.getDashboard(house.id, userId, dashboardDate).subscribe({
             next: (dashboard) => {
                 this.dashboard.set(dashboard);
+                this.updateAllCompletedStatusAndCelebrate(dashboard);
                 this.loading.set(false);
                 setTimeout(() => this.autoScrollToRelevantSlotIfNeeded(), 80);
             },
@@ -1339,6 +1342,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
         return { backgroundColor: task.color || '#ede9fe' };
     }
 
+    getAllCompletedMessage(): string {
+        return '¡Excelente trabajo! Completaste todas las tareas de este día.';
+    }
+
     getFormattedTaskTime(task: DashboardTaskInstanceResponse): string {
         const time = task.startTime || '—';
         const duration = task.durationMinutes ? ` (+${task.durationMinutes}min)` : '';
@@ -2018,6 +2025,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
             return;
         }
 
+        if (this.showAllCompletedMessage()) {
+            this.scrollWindowTo(0);
+            return;
+        }
+
         const firstPendingTask = this.timeSlots.flatMap((slot) => slot.tasks).find((task) => !task.completed);
         if (firstPendingTask) {
             const firstPendingTaskEl = document.getElementById(`task-${firstPendingTask.id}`);
@@ -2083,6 +2095,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
         this.lastAutoScrollContext = context;
         this.scrollToRelevantSlot();
+    }
+
+    private updateAllCompletedStatusAndCelebrate(dashboard: DashboardResponse): void {
+        const tasks = dashboard.todayInstances ?? [];
+        const allCompleted = tasks.length > 0 && tasks.every((task) => task.completed);
+        this.showAllCompletedMessage.set(allCompleted);
+
+        const context = `${this.formatDashboardRequestDate(this.selectedDate())}|${this.selectedUserId() ?? 'all'}`;
+        if (!allCompleted) {
+            if (this.lastCompletionCelebrationContext === context) {
+                this.lastCompletionCelebrationContext = undefined;
+            }
+            return;
+        }
+
+        if (this.lastCompletionCelebrationContext === context) {
+            return;
+        }
+
+        this.lastCompletionCelebrationContext = context;
+        this.triggerTaskFireworks();
     }
 
     private startInactivityTimer(): void {

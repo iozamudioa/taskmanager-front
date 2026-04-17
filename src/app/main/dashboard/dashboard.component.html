@@ -110,6 +110,12 @@
             </div>
             } @else {
             <div class="time-slots">
+                @if (showAllCompletedMessage()) {
+                <div class="all-completed-banner" role="status" aria-live="polite">
+                    <span class="all-completed-icon">🎉</span>
+                    <span class="all-completed-text">{{ getAllCompletedMessage() }}</span>
+                </div>
+                }
                 @for (slot of timeSlots; track trackByHour($index, slot)) {
                 <div class="time-slot" [id]="'slot-' + slot.hour" [class.current-hour]="isCurrentHour(slot.hour)"
                     [class.overdue-hour]="isPastHourWithPendingTasks(slot)">
