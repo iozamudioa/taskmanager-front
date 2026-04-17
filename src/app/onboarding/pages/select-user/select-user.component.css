@@ -118,8 +118,8 @@
 }
 
 .user-avatar {
-    width: 80px;
-    height: 80px;
+    width: 97px;
+    height: 97px;
     border-radius: 50%;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
@@ -366,8 +366,8 @@
     }
 
     .user-avatar {
-        width: 34px;
-        height: 34px;
+        width: 42px;
+        height: 42px;
         font-size: 0.95rem;
         margin-bottom: 0.2rem;
     }
@@ -432,5 +432,37 @@
     .pin-icon-toggle {
         width: 2.65rem;
         height: 2.65rem;
+    }
+}
+
+/* Portrait orientation - max 2 columns */
+@media (orientation: portrait) {
+    .members-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1.2rem;
+    }
+
+    .user-card {
+        padding: 1.5rem;
+    }
+
+    .user-avatar {
+        width: 70px;
+        height: 70px;
+        font-size: 1.8rem;
+        margin-bottom: 0.8rem;
+    }
+
+    .user-card h3 {
+        font-size: 1.1rem;
+    }
+
+    .username {
+        font-size: 0.85rem;
+    }
+
+    .role-badge {
+        padding: 0.35rem 0.75rem;
+        font-size: 0.7rem;
     }
 }
