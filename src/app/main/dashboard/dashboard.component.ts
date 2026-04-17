@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ColorPickerDirective } from 'ngx-color-picker';
@@ -45,7 +45,7 @@ type ProfilePinContext = 'change' | 'reauth';
         '(window:touchstart)': 'onUserActivity()',
     },
 })
-export class DashboardComponent implements OnInit, OnDestroy {
+export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     private state = inject(AppStateService);
     private router = inject(Router);
     private api = inject(ApiService);
@@ -63,6 +63,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     showScreenFireworks = signal(false);
     screenFireworks = signal<FireworkParticle[]>([]);
     showAllCompletedMessage = signal(false);
+    headerHeight = signal(0);
 
     selectedUserId = signal<number | null>(null);
     showCreateModal = signal(false);
@@ -244,6 +245,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.loadDashboardSession();
     }
 
+    ngAfterViewInit(): void {
+        const headerEl = document.querySelector('.dashboard-header');
+        if (headerEl) {
+            this.headerHeight.set(headerEl.getBoundingClientRect().height);
+        }
+    }
+
     ngOnDestroy(): void {
         if (this.clockInterval) {
             clearInterval(this.clockInterval);
@@ -289,7 +297,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.api.getDashboard(house.id, userId, dashboardDate).subscribe({
             next: (dashboard) => {
                 this.dashboard.set(dashboard);
-                this.updateAllCompletedStatusAndCelebrate(dashboard);
+                this.updateAllCompletedStatusAndCelebrate(dashboard, userId);
                 this.loading.set(false);
                 setTimeout(() => this.autoScrollToRelevantSlotIfNeeded(), 80);
             },
@@ -2034,8 +2042,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         if (firstPendingTask) {
             const firstPendingTaskEl = document.getElementById(`task-${firstPendingTask.id}`);
             if (firstPendingTaskEl) {
-                const headerHeight = document.querySelector('.dashboard-header')?.getBoundingClientRect().height ?? 120;
-                const top = firstPendingTaskEl.getBoundingClientRect().top + window.scrollY - headerHeight - 16;
+                const top = firstPendingTaskEl.getBoundingClientRect().top + window.scrollY - this.getStickyOffset() - 16;
                 this.scrollWindowTo(top);
                 return;
             }
@@ -2057,9 +2064,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
             return;
         }
 
-        const headerHeight = document.querySelector('.dashboard-header')?.getBoundingClientRect().height ?? 120;
-        const top = el.getBoundingClientRect().top + window.scrollY - headerHeight - 16;
+        const top = el.getBoundingClientRect().top + window.scrollY - this.getStickyOffset() - 16;
         this.scrollWindowTo(top);
+    }
+
+    private getStickyOffset(): number {
+        const header = document.querySelector('.dashboard-header')?.getBoundingClientRect().height ?? 0;
+        const dateNav = document.querySelector('.date-nav-wrapper')?.getBoundingClientRect().height ?? 0;
+        return header + dateNav;
     }
 
     private scrollWindowTo(targetTop: number): void {
@@ -2097,12 +2109,24 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.scrollToRelevantSlot();
     }
 
-    private updateAllCompletedStatusAndCelebrate(dashboard: DashboardResponse): void {
+    private updateAllCompletedStatusAndCelebrate(dashboard: DashboardResponse, dashboardUserId?: number): void {
+        const sessionUserId = this.currentUser?.id;
+        const isSessionUserView = !!sessionUserId && dashboardUserId === sessionUserId;
+
+        if (!isSessionUserView) {
+            this.showAllCompletedMessage.set(false);
+            if (this.showScreenFireworks()) {
+                this.showScreenFireworks.set(false);
+                this.screenFireworks.set([]);
+            }
+            return;
+        }
+
         const tasks = dashboard.todayInstances ?? [];
         const allCompleted = tasks.length > 0 && tasks.every((task) => task.completed);
         this.showAllCompletedMessage.set(allCompleted);
 
-        const context = `${this.formatDashboardRequestDate(this.selectedDate())}|${this.selectedUserId() ?? 'all'}`;
+        const context = `${this.formatDashboardRequestDate(this.selectedDate())}|${sessionUserId}`;
         if (!allCompleted) {
             if (this.lastCompletionCelebrationContext === context) {
                 this.lastCompletionCelebrationContext = undefined;

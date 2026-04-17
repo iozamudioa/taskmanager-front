@@ -61,6 +61,36 @@
         </div>
     </header>
 
+    <!-- Date nav sticky bar -->
+    @if (canUseDashboardDateNav) {
+    <div class="date-nav-wrapper" [style.top.px]="headerHeight()">
+        <section class="dashboard-date-nav" aria-label="Navegación por fecha">
+            <button class="date-nav-btn" type="button" (click)="goToPreviousDate()" aria-label="Ver día anterior">
+                ‹
+            </button>
+
+            <div class="date-nav-center">
+                <button class="date-nav-value" type="button" (click)="openDashboardDatePicker()"
+                    aria-label="Elegir una fecha específica">
+                    {{ selectedDateTitle }}
+                </button>
+                <input #dashboardDateInput class="date-picker-input" type="date" [value]="selectedDateInputValue"
+                    (change)="onDashboardDateSelected($event)" aria-label="Seleccionar fecha del dashboard" />
+            </div>
+
+            <button class="date-nav-today-btn" type="button" (click)="goToToday()"
+                [class.active]="selectedDateInputValue === todayInputValue"
+                [disabled]="selectedDateInputValue === todayInputValue" aria-label="Ir a hoy">
+                Hoy
+            </button>
+
+            <button class="date-nav-btn" type="button" (click)="goToNextDate()" aria-label="Ver día siguiente">
+                ›
+            </button>
+        </section>
+    </div>
+    }
+
     <!-- Main content -->
     <main class="dashboard-main">
         @if (loading()) {
@@ -75,32 +105,6 @@
         </div>
         } @else {
         <div class="hourly-list">
-            @if (canUseDashboardDateNav) {
-            <section class="dashboard-date-nav" aria-label="Navegación por fecha" [hidden]="!canUseDashboardDateNav">
-                <button class="date-nav-btn" type="button" (click)="goToPreviousDate()" aria-label="Ver día anterior">
-                    ‹
-                </button>
-
-                <div class="date-nav-center">
-                    <button class="date-nav-value" type="button" (click)="openDashboardDatePicker()"
-                        aria-label="Elegir una fecha específica">
-                        {{ selectedDateTitle }}
-                    </button>
-                    <input #dashboardDateInput class="date-picker-input" type="date" [value]="selectedDateInputValue"
-                        (change)="onDashboardDateSelected($event)" aria-label="Seleccionar fecha del dashboard" />
-                </div>
-
-                <button class="date-nav-today-btn" type="button" (click)="goToToday()"
-                    [class.active]="selectedDateInputValue === todayInputValue"
-                    [disabled]="selectedDateInputValue === todayInputValue" aria-label="Ir a hoy">
-                    Hoy
-                </button>
-
-                <button class="date-nav-btn" type="button" (click)="goToNextDate()" aria-label="Ver día siguiente">
-                    ›
-                </button>
-            </section>
-            }
 
             @if (tasks.length === 0) {
             <div class="empty-state">
