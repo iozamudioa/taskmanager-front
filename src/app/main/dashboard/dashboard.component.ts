@@ -1680,7 +1680,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     private todayIsoDate(): string {
-        return new Date().toISOString().slice(0, 10);
+        return this.toIsoDate(new Date());
     }
 
     private toRecurrenceDay(jsDay: number): RecurrenceDay {
