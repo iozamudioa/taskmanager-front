@@ -505,6 +505,12 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    position: sticky;
+    top: var(--slot-sticky-top, 104px);
+    z-index: 8;
+    background: #fafafa;
+    margin: 0 -0.25rem;
+    padding: 0.35rem 0.25rem 0.75rem;
     padding-bottom: 0.75rem;
     border-bottom: 2px solid #f3f4f6;
 }
@@ -1096,6 +1102,39 @@
     flex-direction: column;
     gap: 1.25rem;
     padding-bottom: 3rem;
+}
+
+.task-modal-content {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.task-modal-form {
+    flex: 1;
+    min-height: 0;
+    gap: 0;
+    padding: 0;
+}
+
+.task-modal-body-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.task-modal-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    background: white;
+    border-top: 1.5px solid #f3f4f6;
+    margin-top: 0;
+    padding: 0.9rem 1.5rem calc(0.9rem + env(safe-area-inset-bottom));
 }
 
 .field {

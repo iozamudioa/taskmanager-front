@@ -113,7 +113,7 @@
                 <p class="empty-subtitle">No hay tareas programadas para esta fecha.</p>
             </div>
             } @else {
-            <div class="time-slots">
+            <div class="time-slots" [style.--slot-sticky-top.px]="hourHeaderStickyTop">
                 @if (showAllCompletedMessage()) {
                 <div class="all-completed-banner" role="status" aria-live="polite">
                     <span class="all-completed-icon">🎉</span>
@@ -650,150 +650,156 @@
     <!-- Create task modal -->
     @if (showCreateModal()) {
     <div class="modal-backdrop" (click)="closeCreateModal()">
-        <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-content task-modal-content" (click)="$event.stopPropagation()">
             <div class="modal-header">
                 <h2 class="modal-title">{{ isEditingTask() ? 'Editar tarea' : (cloningTask() ? 'Clonar tarea' : 'Nueva
                     tarea') }}</h2>
                 <button class="modal-close" (click)="closeCreateModal()">×</button>
             </div>
 
-            <form class="modal-form" (ngSubmit)="submitTask()">
-                <div class="field">
-                    <label class="label" for="title">Título *</label>
-                    <input id="title" class="input" type="text" placeholder="Ej. Lavar los platos"
-                        [(ngModel)]="taskForm.title" name="title" required autocomplete="off" #titleInput />
-                </div>
-
-                <div class="field">
-                    <label class="label" for="description">Descripción</label>
-                    <textarea id="description" class="input textarea" placeholder="Detalles adicionales..."
-                        [(ngModel)]="taskForm.description" name="description" rows="3"></textarea>
-                </div>
-
-                <div class="field-row">
+            <form class="modal-form task-modal-form" (ngSubmit)="submitTask()">
+                <div class="task-modal-body-scroll">
                     <div class="field">
-                        <label class="label" for="startDate">Fecha inicio</label>
-                        <input id="startDate" class="input" type="date" [(ngModel)]="taskForm.startDate"
-                            name="startDate" [min]="getMinTaskStartDate()" (ngModelChange)="onDateRangeChanged()" />
+                        <label class="label" for="title">Título *</label>
+                        <input id="title" class="input" type="text" placeholder="Ej. Lavar los platos"
+                            [(ngModel)]="taskForm.title" name="title" required autocomplete="off" #titleInput />
                     </div>
-                    <div class="field">
-                        <label class="label" for="endDate">Fecha fin</label>
-                        <input id="endDate" class="input" type="date" [(ngModel)]="taskForm.endDate" name="endDate"
-                            [min]="getMinTaskEndDate()" (ngModelChange)="onDateRangeChanged()" />
-                    </div>
-                </div>
 
-                <div class="field">
-                    <label class="label">Recurrente (LUN a DOM)</label>
-                    <p class="recurrence-hint">Rango actual: {{ getAllowedRangeDaysCount() }} día(s)</p>
-                    <div class="recurrence-grid">
-                        @for (day of recurrenceDays; track day) {
-                        <button type="button" class="day-chip" [class.selected]="isRecurrenceDaySelected(day)"
-                            [class.disabled]="!isRecurrenceDayEnabled(day)" [disabled]="!isRecurrenceDayEnabled(day)"
-                            (click)="toggleRecurrenceDay(day)">
-                            {{ day }}
-                        </button>
+                    <div class="field">
+                        <label class="label" for="description">Descripción</label>
+                        <textarea id="description" class="input textarea" placeholder="Detalles adicionales..."
+                            [(ngModel)]="taskForm.description" name="description" rows="3"></textarea>
+                    </div>
+
+                    <div class="field-row">
+                        <div class="field">
+                            <label class="label" for="startDate">Fecha inicio</label>
+                            <input id="startDate" class="input" type="date" [(ngModel)]="taskForm.startDate"
+                                name="startDate" [min]="getMinTaskStartDate()" (ngModelChange)="onDateRangeChanged()" />
+                        </div>
+                        <div class="field">
+                            <label class="label" for="endDate">Fecha fin</label>
+                            <input id="endDate" class="input" type="date" [(ngModel)]="taskForm.endDate" name="endDate"
+                                [min]="getMinTaskEndDate()" (ngModelChange)="onDateRangeChanged()" />
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="label">Recurrente (LUN a DOM)</label>
+                        <p class="recurrence-hint">Rango actual: {{ getAllowedRangeDaysCount() }} día(s)</p>
+                        <div class="recurrence-grid">
+                            @for (day of recurrenceDays; track day) {
+                            <button type="button" class="day-chip" [class.selected]="isRecurrenceDaySelected(day)"
+                                [class.disabled]="!isRecurrenceDayEnabled(day)"
+                                [disabled]="!isRecurrenceDayEnabled(day)" (click)="toggleRecurrenceDay(day)">
+                                {{ day }}
+                            </button>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="field-row">
+                        <div class="field">
+                            <label class="label" for="startTime">Hora de inicio</label>
+                            <input id="startTime" class="input" type="time" [(ngModel)]="taskForm.startTime"
+                                name="startTime" />
+                        </div>
+                        <div class="field">
+                            <label class="label" for="durationMinutes">Duración (min)</label>
+                            <input id="durationMinutes" class="input" type="number" min="1" max="480"
+                                [(ngModel)]="taskForm.durationMinutes" name="durationMinutes" />
+                        </div>
+                    </div>
+
+                    <div class="field-row">
+                        <div class="field">
+                            <label class="label" for="priority">Prioridad</label>
+                            <select class="input" id="priority" [(ngModel)]="taskForm.priority" name="priority">
+                                <option [value]="1">Alta (1)</option>
+                                <option [value]="2">Media (2)</option>
+                                <option [value]="3">Baja (3)</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label class="label" for="pointsReward">Puntos</label>
+                            <input id="pointsReward" class="input" type="number" min="0"
+                                [(ngModel)]="taskForm.pointsReward" name="pointsReward" />
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="label">Color</label>
+                        <div class="task-color-grid">
+                            @for (color of colors; track color) {
+                            <button type="button" class="color-swatch" [style.backgroundColor]="color"
+                                [class.selected]="taskForm.color === color" (click)="taskForm.color = color"
+                                [title]="color"></button>
+                            }
+                            <button type="button" class="color-custom-btn"
+                                [class.selected]="!colors.includes(taskForm.color || '')"
+                                [style.borderColor]="taskForm.color" [style.color]="taskForm.color"
+                                [colorPicker]="taskForm.color || '#ede9fe'"
+                                (colorPickerChange)="onCustomTaskColorChanged($event)"
+                                (colorPickerSelect)="onCustomTaskColorAccepted($event)"
+                                (colorPickerCancel)="onCustomTaskColorCanceled()" [(cpToggle)]="taskColorPickerOpen"
+                                [cpOutputFormat]="'hex'" [cpPosition]="'auto'" [cpPresetColors]="colors"
+                                [cpDialogDisplay]="'popup'" [cpOKButton]="true" [cpCancelButton]="true"
+                                [cpSaveClickOutside]="false" [cpOKButtonText]="'Aceptar'"
+                                [cpCancelButtonText]="'Cancelar'" [cpOKButtonClass]="'tm-color-ok-btn'"
+                                [cpCancelButtonClass]="'tm-color-cancel-btn'" [cpCloseClickOutside]="true"
+                                [cpUseRootViewContainer]="true">
+                                🎨 Custom color
+                            </button>
+                        </div>
+                        <div class="selected-color-preview">
+                            <span class="selected-color-circle" [style.backgroundColor]="taskForm.color || '#ede9fe'"
+                                aria-hidden="true"></span>
+                            <span class="selected-color-hex">{{ (taskForm.color || '#ede9fe') | uppercase }}</span>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="label">Imagen</label>
+                        <div class="image-actions">
+                            <button type="button" class="btn-image" (click)="galleryInput.click()">🖼️ Elegir
+                                imagen</button>
+                            <button type="button" class="btn-image" (click)="cameraInput.click()">📷 Abrir
+                                cámara</button>
+                        </div>
+
+                        <input #galleryInput type="file" accept="image/*" class="hidden-file"
+                            (change)="onGalleryImageSelected($event)" />
+                        <input #cameraInput type="file" accept="image/*" capture="environment" class="hidden-file"
+                            (change)="onCameraImageSelected($event)" />
+
+                        @if (taskForm.image) {
+                        <div class="image-preview-wrap">
+                            <img [src]="taskForm.image" alt="Vista previa" class="image-preview" />
+                            <button type="button" class="btn-remove-image"
+                                (click)="clearSelectedImage()">Quitar</button>
+                        </div>
                         }
                     </div>
-                </div>
 
-                <div class="field-row">
+                    @if (isAdmin) {
                     <div class="field">
-                        <label class="label" for="startTime">Hora de inicio</label>
-                        <input id="startTime" class="input" type="time" [(ngModel)]="taskForm.startTime"
-                            name="startTime" />
-                    </div>
-                    <div class="field">
-                        <label class="label" for="durationMinutes">Duración (min)</label>
-                        <input id="durationMinutes" class="input" type="number" min="1" max="480"
-                            [(ngModel)]="taskForm.durationMinutes" name="durationMinutes" />
-                    </div>
-                </div>
-
-                <div class="field-row">
-                    <div class="field">
-                        <label class="label" for="priority">Prioridad</label>
-                        <select class="input" id="priority" [(ngModel)]="taskForm.priority" name="priority">
-                            <option [value]="1">Alta (1)</option>
-                            <option [value]="2">Media (2)</option>
-                            <option [value]="3">Baja (3)</option>
+                        <label class="label" for="userId">Asignar a</label>
+                        <select class="input" id="userId" [(ngModel)]="taskForm.userId" name="userId">
+                            <option [value]="0">Sin asignar</option>
+                            @for (member of houseUsers(); track trackByHouseUser($index, member)) {
+                            <option [value]="member.userId">@{{ member.user.username }}</option>
+                            }
                         </select>
                     </div>
-                    <div class="field">
-                        <label class="label" for="pointsReward">Puntos</label>
-                        <input id="pointsReward" class="input" type="number" min="0" [(ngModel)]="taskForm.pointsReward"
-                            name="pointsReward" />
-                    </div>
-                </div>
-
-                <div class="field">
-                    <label class="label">Color</label>
-                    <div class="task-color-grid">
-                        @for (color of colors; track color) {
-                        <button type="button" class="color-swatch" [style.backgroundColor]="color"
-                            [class.selected]="taskForm.color === color" (click)="taskForm.color = color"
-                            [title]="color"></button>
-                        }
-                        <button type="button" class="color-custom-btn"
-                            [class.selected]="!colors.includes(taskForm.color || '')"
-                            [style.borderColor]="taskForm.color" [style.color]="taskForm.color"
-                            [colorPicker]="taskForm.color || '#ede9fe'"
-                            (colorPickerChange)="onCustomTaskColorChanged($event)"
-                            (colorPickerSelect)="onCustomTaskColorAccepted($event)"
-                            (colorPickerCancel)="onCustomTaskColorCanceled()" [(cpToggle)]="taskColorPickerOpen"
-                            [cpOutputFormat]="'hex'" [cpPosition]="'auto'" [cpPresetColors]="colors"
-                            [cpDialogDisplay]="'popup'" [cpOKButton]="true" [cpCancelButton]="true"
-                            [cpSaveClickOutside]="false" [cpOKButtonText]="'Aceptar'" [cpCancelButtonText]="'Cancelar'"
-                            [cpOKButtonClass]="'tm-color-ok-btn'" [cpCancelButtonClass]="'tm-color-cancel-btn'"
-                            [cpCloseClickOutside]="true" [cpUseRootViewContainer]="true">
-                            🎨 Custom color
-                        </button>
-                    </div>
-                    <div class="selected-color-preview">
-                        <span class="selected-color-circle" [style.backgroundColor]="taskForm.color || '#ede9fe'"
-                            aria-hidden="true"></span>
-                        <span class="selected-color-hex">{{ (taskForm.color || '#ede9fe') | uppercase }}</span>
-                    </div>
-                </div>
-
-                <div class="field">
-                    <label class="label">Imagen</label>
-                    <div class="image-actions">
-                        <button type="button" class="btn-image" (click)="galleryInput.click()">🖼️ Elegir
-                            imagen</button>
-                        <button type="button" class="btn-image" (click)="cameraInput.click()">📷 Abrir cámara</button>
-                    </div>
-
-                    <input #galleryInput type="file" accept="image/*" class="hidden-file"
-                        (change)="onGalleryImageSelected($event)" />
-                    <input #cameraInput type="file" accept="image/*" capture="environment" class="hidden-file"
-                        (change)="onCameraImageSelected($event)" />
-
-                    @if (taskForm.image) {
-                    <div class="image-preview-wrap">
-                        <img [src]="taskForm.image" alt="Vista previa" class="image-preview" />
-                        <button type="button" class="btn-remove-image" (click)="clearSelectedImage()">Quitar</button>
-                    </div>
                     }
+
+                    @if (createTaskError()) {
+                    <p class="error-msg">{{ createTaskError() }}</p>
+                    }
+
                 </div>
 
-                @if (isAdmin) {
-                <div class="field">
-                    <label class="label" for="userId">Asignar a</label>
-                    <select class="input" id="userId" [(ngModel)]="taskForm.userId" name="userId">
-                        <option [value]="0">Sin asignar</option>
-                        @for (member of houseUsers(); track trackByHouseUser($index, member)) {
-                        <option [value]="member.userId">@{{ member.user.username }}</option>
-                        }
-                    </select>
-                </div>
-                }
-
-                @if (createTaskError()) {
-                <p class="error-msg">{{ createTaskError() }}</p>
-                }
-
-                <div class="modal-actions">
+                <div class="modal-actions task-modal-actions">
                     <button class="btn-cancel" type="button" (click)="closeCreateModal()">Cancelar</button>
                     <button class="btn-submit" type="submit" [disabled]="creatingTask()">
                         @if (creatingTask()) {

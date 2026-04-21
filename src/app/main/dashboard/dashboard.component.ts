@@ -141,6 +141,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     private inactivityTimeout?: ReturnType<typeof setTimeout>;
     private lastActivityEventAt = 0;
     private lastAutoScrollContext?: string;
+    private skipNextDashboardAutoScroll = false;
     private lastCompletionCelebrationContext?: string;
     private readonly inactivityTimeoutMs = 60_000;
 
@@ -218,6 +219,10 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
     get canUseDashboardDateNav(): boolean {
         return this.userRole === ROLE_OWNER || this.userRole === ROLE_ADMIN;
+    }
+
+    get hourHeaderStickyTop(): number {
+        return this.getStickyOffset();
     }
 
     ngOnInit(): void {
@@ -299,6 +304,11 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
                 this.dashboard.set(dashboard);
                 this.updateAllCompletedStatusAndCelebrate(dashboard, userId);
                 this.loading.set(false);
+                if (this.skipNextDashboardAutoScroll) {
+                    this.skipNextDashboardAutoScroll = false;
+                    this.lastAutoScrollContext = `${this.formatDashboardRequestDate(this.selectedDate())}|${this.selectedUserId() ?? 'all'}`;
+                    return;
+                }
                 setTimeout(() => this.autoScrollToRelevantSlotIfNeeded(), 80);
             },
             error: () => {
@@ -1086,6 +1096,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
                 this.showCreateModal.set(false);
                 this.editingTaskId.set(null);
                 this.cloningTask.set(false);
+                this.skipNextDashboardAutoScroll = true;
                 this.loadDashboard();
             },
             error: () => {
@@ -1355,9 +1366,28 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     getFormattedTaskTime(task: DashboardTaskInstanceResponse): string {
-        const time = task.startTime || '—';
-        const duration = task.durationMinutes ? ` (+${task.durationMinutes}min)` : '';
-        return `${time}${duration}`;
+        const startTime = task.startTime;
+        if (!startTime) {
+            return '—';
+        }
+
+        const durationMinutes = task.durationMinutes ?? 0;
+        if (durationMinutes <= 0) {
+            return startTime;
+        }
+
+        const startMinutes = this.toMinutesOfDay(startTime);
+        if (startMinutes === null) {
+            return startTime;
+        }
+
+        const minutesInDay = 24 * 60;
+        const endMinutes = (startMinutes + durationMinutes) % minutesInDay;
+        const endHour = Math.floor(endMinutes / 60);
+        const endMinute = endMinutes % 60;
+        const endTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`;
+
+        return `${startTime} - ${endTime}`;
     }
 
     shouldShowTaskProgress(task: DashboardTaskInstanceResponse): boolean {
@@ -2101,6 +2131,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
     private autoScrollToRelevantSlotIfNeeded(): void {
         const context = `${this.formatDashboardRequestDate(this.selectedDate())}|${this.selectedUserId() ?? 'all'}`;
+
         if (this.lastAutoScrollContext === context) {
             return;
         }
