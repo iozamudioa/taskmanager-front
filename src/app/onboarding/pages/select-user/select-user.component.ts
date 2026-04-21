@@ -22,6 +22,7 @@ type PinMode = 'validate' | 'setup';
     styleUrl: './select-user.component.css',
     host: {
         '(window:keydown.escape)': 'onEscapeKey()',
+        '(window:popstate)': 'onNavigationGesture($event)',
     },
 })
 export class SelectUserComponent implements OnDestroy {
@@ -51,6 +52,7 @@ export class SelectUserComponent implements OnDestroy {
     toastMessage = signal('');
     showToast = signal(false);
     private toastTimer: ReturnType<typeof setTimeout> | null = null;
+    private readonly gestureModalStateKey = '__tmSelectUserPinModalOpen';
 
     readonly vm$ = this.reload$.pipe(
         startWith(void 0),
@@ -136,6 +138,7 @@ export class SelectUserComponent implements OnDestroy {
         this.showPin = false;
         this.showPinConfirm = false;
         this.showPinSetupSuccess.set(false);
+        this.clearGestureModalStateFromCurrentEntry();
     }
 
     onPinSetupSuccessAccept(): void {
@@ -188,6 +191,14 @@ export class SelectUserComponent implements OnDestroy {
         if (this.pinModalOpen()) {
             this.closePinModal();
         }
+    }
+
+    onNavigationGesture(_event: PopStateEvent): void {
+        if (!this.pinModalOpen()) {
+            return;
+        }
+
+        this.closePinModal();
     }
 
     focusPinInput(): void {
@@ -390,6 +401,7 @@ export class SelectUserComponent implements OnDestroy {
         this.showPin = false;
         this.showPinConfirm = false;
         this.showPinSetupSuccess.set(false);
+        this.pushGestureModalState();
         this.queuePinInputFocus();
     }
 
@@ -476,6 +488,33 @@ export class SelectUserComponent implements OnDestroy {
                 this.focusPinConfirmInput();
             });
         }, 60);
+    }
+
+    private pushGestureModalState(): void {
+        if (typeof history === 'undefined') {
+            return;
+        }
+
+        const currentState = (history.state as Record<string, unknown> | null) ?? {};
+        if (currentState[this.gestureModalStateKey] === true) {
+            return;
+        }
+
+        history.pushState({ ...currentState, [this.gestureModalStateKey]: true }, '', this.router.url);
+    }
+
+    private clearGestureModalStateFromCurrentEntry(): void {
+        if (typeof history === 'undefined') {
+            return;
+        }
+
+        const currentState = (history.state as Record<string, unknown> | null) ?? {};
+        if (currentState[this.gestureModalStateKey] !== true) {
+            return;
+        }
+
+        const { [this.gestureModalStateKey]: _, ...rest } = currentState;
+        history.replaceState(rest, '', this.router.url);
     }
 
     ngOnDestroy(): void {

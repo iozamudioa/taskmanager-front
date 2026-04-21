@@ -38,11 +38,14 @@ type ProfilePinContext = 'change' | 'reauth';
     styleUrl: './dashboard.component.css',
     host: {
         '(window:keydown.escape)': 'onEscapeKey()',
+        '(window:popstate)': 'onNavigationGesture($event)',
         '(window:mousemove)': 'onUserActivity()',
         '(window:keydown)': 'onUserActivity()',
         '(window:click)': 'onUserActivity()',
-        '(window:scroll)': 'onUserActivity()',
+        '(window:scroll)': 'onWindowScroll()',
         '(window:touchstart)': 'onUserActivity()',
+        '(window:wheel)': 'markDashboardScrolled()',
+        '(window:touchmove)': 'markDashboardScrolled()',
     },
 })
 export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
@@ -64,6 +67,9 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     screenFireworks = signal<FireworkParticle[]>([]);
     showAllCompletedMessage = signal(false);
     headerHeight = signal(0);
+    hideDateNavWhileScrolling = signal(false);
+    isAtScrollTop = signal(true);
+    hasUserScrolledDashboard = signal(false);
 
     selectedUserId = signal<number | null>(null);
     showCreateModal = signal(false);
@@ -142,7 +148,9 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     private lastActivityEventAt = 0;
     private lastAutoScrollContext?: string;
     private skipNextDashboardAutoScroll = false;
+    private suppressAutoScrollLoadsRemaining = 0;
     private lastCompletionCelebrationContext?: string;
+    private readonly gestureGuardStateKey = '__tmDashboardGestureGuard';
     private readonly inactivityTimeoutMs = 60_000;
 
     get currentHouse() {
@@ -222,7 +230,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     get hourHeaderStickyTop(): number {
-        return this.getStickyOffset();
+        return Math.max(0, this.getStickyOffset() - 4);
     }
 
     ngOnInit(): void {
@@ -235,6 +243,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
             this.router.navigate(['/onboarding/select-user'], { replaceUrl: true });
             return;
         }
+
+        this.initGestureNavigationGuard();
 
         this.startClockTicker();
         this.startInactivityTimer();
@@ -255,6 +265,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         if (headerEl) {
             this.headerHeight.set(headerEl.getBoundingClientRect().height);
         }
+
+        this.updateDateNavVisibilityByScroll();
     }
 
     ngOnDestroy(): void {
@@ -273,6 +285,65 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
         this.lastActivityEventAt = now;
         this.resetInactivityTimer();
+    }
+
+    onWindowScroll(): void {
+        this.onUserActivity();
+        this.updateDateNavVisibilityByScroll();
+    }
+
+    markDashboardScrolled(): void {
+        if (!this.hasUserScrolledDashboard()) {
+            this.hasUserScrolledDashboard.set(true);
+        }
+    }
+
+    scrollToTop(): void {
+        this.scrollWindowTo(0);
+    }
+
+    scrollToCurrentHour(): void {
+        if (!this.timeSlots.length) {
+            this.scrollWindowTo(0);
+            return;
+        }
+
+        const currentHour = new Date().getHours();
+        const sortedSlots = [...this.timeSlots].sort((a, b) => a.hour - b.hour);
+        const targetSlot =
+            sortedSlots.find((slot) => slot.hour === currentHour) ??
+            sortedSlots.find((slot) => slot.hour > currentHour) ??
+            sortedSlots[sortedSlots.length - 1];
+
+        if (!targetSlot) {
+            this.scrollWindowTo(0);
+            return;
+        }
+
+        const el = document.getElementById(`slot-${targetSlot.hour}`);
+        if (!el) {
+            this.scrollWindowTo(0);
+            return;
+        }
+
+        const top = el.getBoundingClientRect().top + window.scrollY - this.getStickyOffset() - this.getAutoScrollViewportOffset();
+        this.scrollWindowTo(top);
+    }
+
+    private updateDateNavVisibilityByScroll(): void {
+        const isAtTop = this.isWindowAtTop();
+        this.isAtScrollTop.set(isAtTop);
+
+        if (!this.canUseDashboardDateNav) {
+            this.hideDateNavWhileScrolling.set(false);
+            return;
+        }
+
+        this.hideDateNavWhileScrolling.set(!isAtTop);
+    }
+
+    private isWindowAtTop(): boolean {
+        return typeof window === 'undefined' || window.scrollY <= 2;
     }
 
     loadMembers(): void {
@@ -304,6 +375,11 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
                 this.dashboard.set(dashboard);
                 this.updateAllCompletedStatusAndCelebrate(dashboard, userId);
                 this.loading.set(false);
+                if (this.suppressAutoScrollLoadsRemaining > 0) {
+                    this.suppressAutoScrollLoadsRemaining -= 1;
+                    this.lastAutoScrollContext = `${this.formatDashboardRequestDate(this.selectedDate())}|${this.selectedUserId() ?? 'all'}`;
+                    return;
+                }
                 if (this.skipNextDashboardAutoScroll) {
                     this.skipNextDashboardAutoScroll = false;
                     this.lastAutoScrollContext = `${this.formatDashboardRequestDate(this.selectedDate())}|${this.selectedUserId() ?? 'all'}`;
@@ -1097,6 +1173,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
                 this.editingTaskId.set(null);
                 this.cloningTask.set(false);
                 this.skipNextDashboardAutoScroll = true;
+                this.suppressAutoScrollLoadsRemaining = 2;
                 this.loadDashboard();
             },
             error: () => {
@@ -1555,6 +1632,27 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         }
     }
 
+    onNavigationGesture(_event: PopStateEvent): void {
+        if (this.taskImagePreview()) {
+            this.closeTaskImagePreview();
+            this.restoreGestureNavigationGuard();
+            return;
+        }
+
+        if (this.closeTopMostModalForGesture()) {
+            this.restoreGestureNavigationGuard();
+            return;
+        }
+
+        if (!this.isAtScrollTop()) {
+            this.scrollToTop();
+            this.restoreGestureNavigationGuard();
+            return;
+        }
+
+        this.router.navigate(['/onboarding/select-user'], { replaceUrl: true });
+    }
+
     confirmAlertModal(): void {
         const action = this.alertModalAction;
         this.closeAlertModal();
@@ -1579,6 +1677,57 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
             delete current[taskId];
         }
         this.deletingTaskIds.set(current);
+    }
+
+    private closeTopMostModalForGesture(): boolean {
+        if (this.showAlertModal()) {
+            this.closeAlertModal();
+            return true;
+        }
+
+        if (this.showProfilePinModal()) {
+            this.resetProfilePinFlow();
+            return true;
+        }
+
+        if (this.showProfileModal()) {
+            this.closeProfileModal();
+            return true;
+        }
+
+        if (this.showMembersModal()) {
+            this.closeMembersModal();
+            return true;
+        }
+
+        if (this.showCreateModal()) {
+            this.closeCreateModal();
+            return true;
+        }
+
+        return false;
+    }
+
+    private initGestureNavigationGuard(): void {
+        if (typeof window === 'undefined' || typeof history === 'undefined') {
+            return;
+        }
+
+        const currentState = (history.state as Record<string, unknown> | null) ?? {};
+        if (currentState[this.gestureGuardStateKey] === true) {
+            return;
+        }
+
+        history.pushState({ ...currentState, [this.gestureGuardStateKey]: true }, '', this.router.url);
+    }
+
+    private restoreGestureNavigationGuard(): void {
+        if (typeof window === 'undefined' || typeof history === 'undefined') {
+            return;
+        }
+
+        const currentState = (history.state as Record<string, unknown> | null) ?? {};
+        history.pushState({ ...currentState, [this.gestureGuardStateKey]: true }, '', this.router.url);
     }
 
     private triggerTaskFireworks(): void {
@@ -2072,7 +2221,11 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         if (firstPendingTask) {
             const firstPendingTaskEl = document.getElementById(`task-${firstPendingTask.id}`);
             if (firstPendingTaskEl) {
-                const top = firstPendingTaskEl.getBoundingClientRect().top + window.scrollY - this.getStickyOffset() - 16;
+                const top =
+                    firstPendingTaskEl.getBoundingClientRect().top +
+                    window.scrollY -
+                    this.getStickyOffset() -
+                    this.getAutoScrollViewportOffset();
                 this.scrollWindowTo(top);
                 return;
             }
@@ -2094,7 +2247,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
             return;
         }
 
-        const top = el.getBoundingClientRect().top + window.scrollY - this.getStickyOffset() - 16;
+        const top = el.getBoundingClientRect().top + window.scrollY - this.getStickyOffset() - this.getAutoScrollViewportOffset();
         this.scrollWindowTo(top);
     }
 
@@ -2102,6 +2255,14 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         const header = document.querySelector('.dashboard-header')?.getBoundingClientRect().height ?? 0;
         const dateNav = document.querySelector('.date-nav-wrapper')?.getBoundingClientRect().height ?? 0;
         return header + dateNav;
+    }
+
+    private getAutoScrollViewportOffset(): number {
+        if (typeof window === 'undefined') {
+            return 240;
+        }
+
+        return Math.max(240, Math.floor(window.innerHeight * 0.34));
     }
 
     private scrollWindowTo(targetTop: number): void {
@@ -2133,6 +2294,11 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         const context = `${this.formatDashboardRequestDate(this.selectedDate())}|${this.selectedUserId() ?? 'all'}`;
 
         if (this.lastAutoScrollContext === context) {
+            return;
+        }
+
+        if (this.isAdmin) {
+            this.lastAutoScrollContext = context;
             return;
         }
 

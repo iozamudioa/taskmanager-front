@@ -63,7 +63,8 @@
 
     <!-- Date nav sticky bar -->
     @if (canUseDashboardDateNav) {
-    <div class="date-nav-wrapper" [style.top.px]="headerHeight()">
+    <div class="date-nav-wrapper" [style.top.px]="headerHeight()"
+        [class.date-nav-wrapper--hidden]="hideDateNavWhileScrolling()">
         <section class="dashboard-date-nav" aria-label="Navegación por fecha">
             <button class="date-nav-btn" type="button" (click)="goToPreviousDate()" aria-label="Ver día anterior">
                 ‹
@@ -226,6 +227,18 @@
         </div>
         }
     </main>
+
+    @if (isAdmin) {
+    @if (!hasUserScrolledDashboard()) {
+    <button class="fab-scroll-top" (click)="scrollToCurrentHour()" title="Ir a la hora actual">
+        🕒
+    </button>
+    } @else {
+    <button class="fab-scroll-top" (click)="scrollToTop()" title="Ir hacia arriba">
+        ↑
+    </button>
+    }
+    }
 
     <!-- Floating action button to create task -->
     @if (isAdmin) {

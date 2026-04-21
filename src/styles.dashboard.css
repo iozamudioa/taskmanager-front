@@ -331,6 +331,35 @@
     transform: scale(0.95);
 }
 
+.fab-scroll-top {
+    position: fixed;
+    bottom: 6.5rem;
+    right: 1.5rem;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6c63ff, #a78bfa);
+    color: white;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(108, 99, 255, 0.35);
+    transition: transform 0.15s, box-shadow 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 30;
+}
+
+.fab-scroll-top:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(108, 99, 255, 0.45);
+}
+
+.fab-scroll-top:active {
+    transform: scale(0.95);
+}
+
 .fab-member {
     background: linear-gradient(135deg, #10b981, #34d399);
     box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
@@ -351,6 +380,17 @@
     z-index: 35;
     background: #fafafa;
     padding: 0.6rem 1.5rem;
+    max-height: 120px;
+    overflow: hidden;
+    transition: max-height 0.18s ease, padding 0.18s ease, opacity 0.18s ease;
+}
+
+.date-nav-wrapper--hidden {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+    pointer-events: none;
 }
 
 .dashboard-date-nav {
@@ -1557,6 +1597,13 @@
         height: 50px;
         font-size: 1.4rem;
         bottom: 1.5rem;
+        right: 1rem;
+    }
+
+    .fab-scroll-top {
+        width: 44px;
+        height: 44px;
+        bottom: 5.2rem;
         right: 1rem;
     }
 }
