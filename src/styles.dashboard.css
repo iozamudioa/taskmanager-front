@@ -243,6 +243,107 @@
     color: white;
 }
 
+.task-search-popover {
+    position: absolute;
+    right: 1.5rem;
+    top: calc(100% - 0.25rem);
+    width: min(430px, calc(100vw - 2rem));
+    max-height: 55dvh;
+    overflow: auto;
+    background: white;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+    z-index: 90;
+    padding: 0.65rem;
+}
+
+.task-search-popover-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.task-search-input {
+    flex: 1;
+    min-width: 0;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.task-search-input:focus {
+    outline: none;
+    border-color: #6c63ff;
+    box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.15);
+}
+
+.task-search-close {
+    border: 1.5px solid #e5e7eb;
+    background: #f9fafb;
+    color: #374151;
+    border-radius: 8px;
+    width: 34px;
+    height: 34px;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.task-search-hint,
+.task-search-error {
+    margin: 0.5rem 0 0;
+    font-size: 0.78rem;
+    font-weight: 500;
+}
+
+.task-search-hint {
+    color: #6b7280;
+}
+
+.task-search-error {
+    color: #dc2626;
+}
+
+.task-search-results {
+    margin-top: 0.55rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.task-search-item {
+    width: 100%;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #1f2937;
+    text-align: left;
+    padding: 0.55rem 0.65rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.task-search-item:hover {
+    border-color: #6c63ff;
+    color: #4338ca;
+    background: #eef2ff;
+}
+
+@media (max-width: 768px) {
+    .task-search-popover {
+        right: 1rem;
+        width: calc(100vw - 2rem);
+        max-height: 50dvh;
+    }
+}
+
 /* Main content */
 .dashboard-main {
     flex: 1;
@@ -349,6 +450,10 @@
     align-items: center;
     justify-content: center;
     z-index: 30;
+}
+
+.fab-scroll-top--single {
+    bottom: 2rem;
 }
 
 .fab-scroll-top:hover {
@@ -1605,6 +1710,10 @@
         height: 44px;
         bottom: 5.2rem;
         right: 1rem;
+    }
+
+    .fab-scroll-top--single {
+        bottom: 1.5rem;
     }
 }
 

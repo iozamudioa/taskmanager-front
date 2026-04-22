@@ -42,6 +42,11 @@ export interface DashboardPointsResponse {
     monthPoints: number;
 }
 
+export interface TaskSearchResult {
+    taskId: number;
+    taskTitle: string;
+}
+
 export interface ValidatePinRequest {
     userId: number;
     pin: string;
@@ -167,6 +172,11 @@ export class ApiService {
         return this.http
             .get<TaskResponse>(`${API_BASE}/tasks/${taskId}`)
             .pipe(map((task) => this.normalizeTask(task)));
+    }
+
+    searchTasks(title: string): Observable<TaskSearchResult[]> {
+        const params = new HttpParams().set('title', title);
+        return this.http.get<TaskSearchResult[]>(`${API_BASE}/tasks/search`, { params });
     }
 
     createTask(request: CreateTaskRequest): Observable<TaskResponse> {

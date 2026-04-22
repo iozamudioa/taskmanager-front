@@ -7,9 +7,9 @@ import { ImageCroppedEvent, ImageCropperComponent } from 'ngx-image-cropper';
 import { catchError, firstValueFrom, of } from 'rxjs';
 import { HouseMemberResponse, ROLE_ADMIN, ROLE_OWNER, roleName } from '../../core/models/house.model';
 import { DashboardResponse, DashboardTaskInstanceResponse } from '../../core/models/task-instance.model';
-import { CreateTaskRequest, RECURRENCE_DAYS, RecurrenceDay, UpdateTaskRequest } from '../../core/models/task.model';
+import { CreateTaskRequest, RECURRENCE_DAYS, RecurrenceDay, TaskResponse, UpdateTaskRequest } from '../../core/models/task.model';
 import { CreateUserRequest, UpdateUserRequest } from '../../core/models/user.model';
-import { ApiService, DashboardPointsResponse, HouseUserResponse } from '../../core/services/api.service';
+import { ApiService, DashboardPointsResponse, HouseUserResponse, TaskSearchResult } from '../../core/services/api.service';
 import { AppStateService } from '../../core/state/app-state.service';
 
 interface TimeSlot {
@@ -44,8 +44,6 @@ type ProfilePinContext = 'change' | 'reauth';
         '(window:click)': 'onUserActivity()',
         '(window:scroll)': 'onWindowScroll()',
         '(window:touchstart)': 'onUserActivity()',
-        '(window:wheel)': 'markDashboardScrolled()',
-        '(window:touchmove)': 'markDashboardScrolled()',
     },
 })
 export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
@@ -69,7 +67,6 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     headerHeight = signal(0);
     hideDateNavWhileScrolling = signal(false);
     isAtScrollTop = signal(true);
-    hasUserScrolledDashboard = signal(false);
 
     selectedUserId = signal<number | null>(null);
     showCreateModal = signal(false);
@@ -83,6 +80,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     cloningTask = signal(false);
     taskColorPickerOpen = false;
     taskImagePreview = signal<string | null>(null);
+    taskImageFile = signal<File | undefined>(undefined);
+    taskCroppedImage = signal<string | undefined>(undefined);
 
     showProfileModal = signal(false);
     savingProfile = signal(false);
@@ -116,6 +115,11 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     searchQuery = signal('');
     searchResults = signal<any[]>([]);
     searching = signal(false);
+    taskSearchQuery = signal('');
+    taskSearchResults = signal<TaskSearchResult[]>([]);
+    taskSearching = signal(false);
+    showTaskSearchPopover = signal(false);
+    taskSearchError = signal('');
     updatingMemberId = signal<number | null>(null);
     managingRoleId = signal<number | null>(null);
 
@@ -133,6 +137,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     recurrenceDays = RECURRENCE_DAYS;
     @ViewChild('titleInput') titleInput?: ElementRef<HTMLInputElement>;
     @ViewChild('dashboardDateInput') dashboardDateInput?: ElementRef<HTMLInputElement>;
+    @ViewChild('taskSearchInput') taskSearchInput?: ElementRef<HTMLInputElement>;
     @ViewChild('profilePinCurrentInput') profilePinCurrentInput?: ElementRef<HTMLInputElement>;
     @ViewChild('profilePinNewInput') profilePinNewInput?: ElementRef<HTMLInputElement>;
     @ViewChild('profilePinConfirmInput') profilePinConfirmInput?: ElementRef<HTMLInputElement>;
@@ -145,6 +150,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     private monthPointsRaf?: number;
     private clockInterval?: ReturnType<typeof setInterval>;
     private inactivityTimeout?: ReturnType<typeof setTimeout>;
+    private taskSearchDebounceTimeout?: ReturnType<typeof setTimeout>;
     private lastActivityEventAt = 0;
     private lastAutoScrollContext?: string;
     private skipNextDashboardAutoScroll = false;
@@ -274,6 +280,11 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
             clearInterval(this.clockInterval);
         }
 
+        if (this.taskSearchDebounceTimeout) {
+            clearTimeout(this.taskSearchDebounceTimeout);
+            this.taskSearchDebounceTimeout = undefined;
+        }
+
         this.clearInactivityTimer();
     }
 
@@ -290,12 +301,6 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     onWindowScroll(): void {
         this.onUserActivity();
         this.updateDateNavVisibilityByScroll();
-    }
-
-    markDashboardScrolled(): void {
-        if (!this.hasUserScrolledDashboard()) {
-            this.hasUserScrolledDashboard.set(true);
-        }
     }
 
     scrollToTop(): void {
@@ -488,6 +493,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         }
 
         this.taskForm = this.getDefaultTaskForm();
+        this.taskImageFile.set(undefined);
+        this.taskCroppedImage.set(undefined);
         this.cloningTask.set(false);
         this.normalizeRecurrenceByDateRange();
         this.createTaskError.set('');
@@ -1104,6 +1111,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         }
 
         this.taskForm = this.buildTaskFormFromTask(task, task.assignedTo ?? 0);
+        this.taskImageFile.set(undefined);
+        this.taskCroppedImage.set(undefined);
         this.cloningTask.set(false);
 
         this.editingTaskId.set(task.taskId);
@@ -1120,12 +1129,183 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
         const preferredUserId = this.selectedUserId() ?? task.assignedTo ?? 0;
         this.taskForm = this.buildTaskFormFromTask(task, preferredUserId);
+        this.taskImageFile.set(undefined);
+        this.taskCroppedImage.set(undefined);
         this.cloningTask.set(true);
         this.editingTaskId.set(null);
         this.normalizeRecurrenceByDateRange();
         this.createTaskError.set('');
         this.showCreateModal.set(true);
         this.focusTitleInput();
+    }
+
+    toggleTaskSearchPopover(): void {
+        if (!this.isAdmin) {
+            return;
+        }
+
+        const nextState = !this.showTaskSearchPopover();
+        this.showTaskSearchPopover.set(nextState);
+        if (nextState) {
+            setTimeout(() => {
+                this.taskSearchInput?.nativeElement.focus();
+                this.taskSearchInput?.nativeElement.select();
+            });
+        }
+        if (!nextState) {
+            this.clearTaskSearch();
+        }
+    }
+
+    onTaskSearchInput(): void {
+        const title = this.taskSearchQuery().trim();
+        this.taskSearchError.set('');
+
+        if (this.taskSearchDebounceTimeout) {
+            clearTimeout(this.taskSearchDebounceTimeout);
+            this.taskSearchDebounceTimeout = undefined;
+        }
+
+        if (title.length < 3) {
+            this.taskSearchResults.set([]);
+            this.taskSearching.set(false);
+            return;
+        }
+
+        this.taskSearchDebounceTimeout = setTimeout(() => {
+            this.taskSearching.set(true);
+            this.api.searchTasks(title).subscribe({
+                next: (results) => {
+                    if (this.taskSearchQuery().trim() !== title) {
+                        return;
+                    }
+                    this.taskSearchResults.set(this.normalizeTaskSearchResults(results));
+                    this.taskSearching.set(false);
+                },
+                error: () => {
+                    this.taskSearchResults.set([]);
+                    this.taskSearching.set(false);
+                    this.taskSearchError.set('No se pudieron buscar tareas.');
+                },
+            });
+        }, 250);
+    }
+
+    selectSearchedTaskForClone(result: TaskSearchResult): void {
+        if (!result?.taskId) {
+            return;
+        }
+
+        this.taskSearching.set(true);
+        this.api.getTask(result.taskId).subscribe({
+            next: (task) => {
+                const preferredUserId = this.selectedUserId() ?? task.assignedTo ?? 0;
+                this.taskForm = this.buildTaskFormFromTaskResponse(task, preferredUserId);
+                this.taskImageFile.set(undefined);
+                this.taskCroppedImage.set(undefined);
+                this.cloningTask.set(true);
+                this.editingTaskId.set(null);
+                this.normalizeRecurrenceByDateRange();
+                this.createTaskError.set('');
+                this.showCreateModal.set(true);
+                this.showTaskSearchPopover.set(false);
+                this.clearTaskSearch();
+                this.taskSearching.set(false);
+                this.focusTitleInput();
+            },
+            error: () => {
+                this.taskSearching.set(false);
+                this.openInfoModal('Error', 'No se pudo cargar la tarea para clonar.');
+            },
+        });
+    }
+
+    hasTaskSearchMinLength(): boolean {
+        return this.taskSearchQuery().trim().length >= 3;
+    }
+
+    getTaskSearchHighlightedTitle(title: string): string {
+        const safeTitle = this.escapeHtmlText(title || '');
+        const query = this.taskSearchQuery().trim();
+        if (!query) {
+            return safeTitle;
+        }
+
+        const escapedQuery = this.escapeRegExp(query);
+        if (!escapedQuery) {
+            return safeTitle;
+        }
+
+        const matchRegex = new RegExp(`(${escapedQuery})`, 'gi');
+        return safeTitle.replace(matchRegex, '<strong>$1</strong>');
+    }
+
+    clearTaskSearch(): void {
+        if (this.taskSearchDebounceTimeout) {
+            clearTimeout(this.taskSearchDebounceTimeout);
+            this.taskSearchDebounceTimeout = undefined;
+        }
+        this.taskSearchQuery.set('');
+        this.taskSearchResults.set([]);
+        this.taskSearchError.set('');
+        this.taskSearching.set(false);
+    }
+
+    closeTaskSearchPopover(): void {
+        if (!this.showTaskSearchPopover()) {
+            return;
+        }
+
+        this.showTaskSearchPopover.set(false);
+        this.clearTaskSearch();
+    }
+
+    private normalizeTaskSearchResults(results: unknown): TaskSearchResult[] {
+        if (!Array.isArray(results)) {
+            return [];
+        }
+
+        return results
+            .map((raw) => {
+                if (!raw || typeof raw !== 'object') {
+                    return null;
+                }
+
+                const item = raw as Record<string, unknown>;
+                const rawTaskId = item['taskId'] ?? item['id'] ?? item['taskID'];
+                const rawTaskTitle = item['taskTitle'] ?? item['title'] ?? item['taskName'] ?? item['name'];
+
+                const taskId =
+                    typeof rawTaskId === 'number'
+                        ? rawTaskId
+                        : typeof rawTaskId === 'string'
+                            ? Number.parseInt(rawTaskId, 10)
+                            : Number.NaN;
+
+                if (!Number.isFinite(taskId)) {
+                    return null;
+                }
+
+                const taskTitle = typeof rawTaskTitle === 'string' ? rawTaskTitle.trim() : '';
+                return {
+                    taskId,
+                    taskTitle: taskTitle || `Tarea #${taskId}`,
+                } as TaskSearchResult;
+            })
+            .filter((item): item is TaskSearchResult => item !== null);
+    }
+
+    private escapeRegExp(value: string): string {
+        return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    private escapeHtmlText(value: string): string {
+        return value
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     closeCreateModal(): void {
@@ -1135,6 +1315,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         this.editingTaskId.set(null);
         this.cloningTask.set(false);
         this.taskColorPickerOpen = false;
+        this.taskImageFile.set(undefined);
+        this.taskCroppedImage.set(undefined);
     }
 
     submitTask(): void {
@@ -1187,13 +1369,16 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         });
     }
 
-    async onGalleryImageSelected(event: Event): Promise<void> {
+    onGalleryImageSelected(event: Event): void {
         const input = event.target as HTMLInputElement;
         const file = input.files?.[0];
         if (!file) return;
 
         try {
-            this.taskForm.image = await this.compressImageToBase64(file);
+            this.taskImageFile.set(file);
+            this.taskCroppedImage.set(undefined);
+            this.taskForm.image = undefined;
+            this.createTaskError.set('');
         } catch {
             this.createTaskError.set('No se pudo procesar la imagen seleccionada.');
         } finally {
@@ -1201,13 +1386,16 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         }
     }
 
-    async onCameraImageSelected(event: Event): Promise<void> {
+    onCameraImageSelected(event: Event): void {
         const input = event.target as HTMLInputElement;
         const file = input.files?.[0];
         if (!file) return;
 
         try {
-            this.taskForm.image = await this.compressImageToBase64(file);
+            this.taskImageFile.set(file);
+            this.taskCroppedImage.set(undefined);
+            this.taskForm.image = undefined;
+            this.createTaskError.set('');
         } catch {
             this.createTaskError.set('No se pudo procesar la foto de la cámara.');
         } finally {
@@ -1215,8 +1403,62 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         }
     }
 
+    onTaskImageCropped(event: ImageCroppedEvent): void {
+        const blobSource = event.blob ?? null;
+        if (!blobSource) {
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            const rawB64 = reader.result as string;
+            const img = new Image();
+            img.onload = () => {
+                const maxSize = 1280;
+                let { width, height } = img;
+                if (width > maxSize || height > maxSize) {
+                    const ratio = Math.min(maxSize / width, maxSize / height);
+                    width = Math.round(width * ratio);
+                    height = Math.round(height * ratio);
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    this.taskCroppedImage.set(rawB64);
+                    this.taskForm.image = rawB64;
+                    return;
+                }
+
+                ctx.drawImage(img, 0, 0, width, height);
+                const compressed = canvas.toDataURL('image/jpeg', 0.82);
+                this.taskCroppedImage.set(compressed);
+                this.taskForm.image = compressed;
+            };
+
+            img.onerror = () => {
+                this.taskCroppedImage.set(rawB64);
+                this.taskForm.image = rawB64;
+            };
+
+            img.src = rawB64;
+        };
+
+        reader.readAsDataURL(blobSource);
+    }
+
+    onTaskImageLoadFailed(): void {
+        this.taskImageFile.set(undefined);
+        this.taskCroppedImage.set(undefined);
+        this.createTaskError.set('No se pudo cargar la imagen para recortarla.');
+    }
+
     clearSelectedImage(): void {
         this.taskForm.image = undefined;
+        this.taskImageFile.set(undefined);
+        this.taskCroppedImage.set(undefined);
     }
 
     onCustomTaskColorChanged(color: string): void {
@@ -1627,6 +1869,11 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
             return;
         }
 
+        if (this.showTaskSearchPopover()) {
+            this.closeTaskSearchPopover();
+            return;
+        }
+
         if (this.showCreateModal()) {
             this.closeCreateModal();
         }
@@ -1697,6 +1944,11 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
         if (this.showMembersModal()) {
             this.closeMembersModal();
+            return true;
+        }
+
+        if (this.showTaskSearchPopover()) {
+            this.closeTaskSearchPopover();
             return true;
         }
 
@@ -1892,6 +2144,29 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
         return {
             houseId: house?.id ?? 0,
+            title: task.title,
+            description: task.description || '',
+            startDate: task.startDate || this.todayIsoDate(),
+            endDate: task.endDate || task.startDate || this.todayIsoDate(),
+            startTime: task.startTime || '08:00',
+            durationMinutes: task.durationMinutes ?? 30,
+            recurrenceDays: recurrence,
+            pointsReward: task.pointsReward ?? 10,
+            priority: task.priority ?? 2,
+            color: task.color || '#ede9fe',
+            userId,
+            image: task.image,
+        };
+    }
+
+    private buildTaskFormFromTaskResponse(task: TaskResponse, userId: number): CreateTaskRequest {
+        const house = this.currentHouse;
+        const recurrence = (task.recurrenceDays ?? []).filter((day): day is RecurrenceDay =>
+            this.recurrenceDays.includes(day as RecurrenceDay)
+        );
+
+        return {
+            houseId: house?.id ?? task.houseId ?? 0,
             title: task.title,
             description: task.description || '',
             startDate: task.startDate || this.todayIsoDate(),

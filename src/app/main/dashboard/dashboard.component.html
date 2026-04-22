@@ -48,6 +48,12 @@
             </button>
             }
             @if (isAdmin) {
+            <button class="user-tab" [class.active]="showTaskSearchPopover()" (click)="toggleTaskSearchPopover()"
+                title="Buscar tarea para clonar">
+                🔎 Buscar tarea
+            </button>
+            }
+            @if (isAdmin) {
             <button class="user-tab" [class.active]="!selectedUserId()" (click)="selectUser(null)">
                 Todas las tareas
             </button>
@@ -59,6 +65,43 @@
             }
             }
         </div>
+
+        @if (isAdmin && showTaskSearchPopover()) {
+        <div class="task-search-popover" (click)="$event.stopPropagation()">
+            <div class="task-search-popover-header">
+                <input #taskSearchInput class="task-search-input" type="text" placeholder="Buscar tarea por título..."
+                    [(ngModel)]="taskSearchQuery" (ngModelChange)="onTaskSearchInput()" autocomplete="off" />
+                <button type="button" class="task-search-close" (click)="toggleTaskSearchPopover()">×</button>
+            </div>
+
+            @if (!hasTaskSearchMinLength()) {
+            <p class="task-search-hint">Escribe al menos 3 caracteres.</p>
+            }
+
+            @if (taskSearching()) {
+            <p class="task-search-hint">Buscando tareas...</p>
+            }
+
+            @if (taskSearchError()) {
+            <p class="task-search-error">{{ taskSearchError() }}</p>
+            }
+
+            @if (!taskSearching() && hasTaskSearchMinLength() && !taskSearchResults().length && !taskSearchError()) {
+            <p class="task-search-hint">Sin resultados.</p>
+            }
+
+            @if (taskSearchResults().length) {
+            <div class="task-search-results">
+                @for (task of taskSearchResults(); track task.taskId) {
+                <button type="button" class="task-search-item" (click)="selectSearchedTaskForClone(task)">
+                    <span
+                        [innerHTML]="getTaskSearchHighlightedTitle(task.taskTitle || ('Tarea #' + task.taskId))"></span>
+                </button>
+                }
+            </div>
+            }
+        </div>
+        }
     </header>
 
     <!-- Date nav sticky bar -->
@@ -228,16 +271,16 @@
         }
     </main>
 
-    @if (isAdmin) {
-    @if (!hasUserScrolledDashboard()) {
-    <button class="fab-scroll-top" (click)="scrollToCurrentHour()" title="Ir a la hora actual">
+    @if (isAtScrollTop()) {
+    <button class="fab-scroll-top" [class.fab-scroll-top--single]="!isAdmin" (click)="scrollToCurrentHour()"
+        title="Ir a la hora actual">
         🕒
     </button>
     } @else {
-    <button class="fab-scroll-top" (click)="scrollToTop()" title="Ir hacia arriba">
+    <button class="fab-scroll-top" [class.fab-scroll-top--single]="!isAdmin" (click)="scrollToTop()"
+        title="Ir hacia arriba">
         ↑
     </button>
-    }
     }
 
     <!-- Floating action button to create task -->
@@ -784,6 +827,16 @@
                             (change)="onGalleryImageSelected($event)" />
                         <input #cameraInput type="file" accept="image/*" capture="environment" class="hidden-file"
                             (change)="onCameraImageSelected($event)" />
+
+                        @if (taskImageFile()) {
+                        <div class="profile-cropper-wrap">
+                            <image-cropper [imageFile]="taskImageFile()" [maintainAspectRatio]="false"
+                                [resizeToWidth]="1280" [onlyScaleDown]="true" format="jpeg" [imageQuality]="82"
+                                (imageCropped)="onTaskImageCropped($event)" (loadImageFailed)="onTaskImageLoadFailed()">
+                            </image-cropper>
+                        </div>
+                        <p class="cropper-hint">Ajusta el recorte para definir la imagen de la tarea.</p>
+                        }
 
                         @if (taskForm.image) {
                         <div class="image-preview-wrap">
