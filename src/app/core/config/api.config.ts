@@ -1,1 +1,1 @@
-export const API_BASE_URL = 'https://tareasapi.ioza.dev/';
+export const API_BASE_URL = 'https://tareasapi.ioza.dev';
