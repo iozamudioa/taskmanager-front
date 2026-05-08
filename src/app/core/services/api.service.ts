@@ -2,6 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, forkJoin, of } from 'rxjs';
 import { catchError, map, switchMap } from 'rxjs/operators';
+import { API_BASE_URL } from '../config/api.config';
 import {
     AddMemberRequest,
     CreateHouseRequest,
@@ -27,8 +28,6 @@ import {
     UpdateTaskRequest,
 } from '../models/task.model';
 import { CreateUserRequest, UpdateUserImageRequest, UpdateUserRequest, UserResponse } from '../models/user.model';
-
-const API_BASE = 'http://api.taskmanager.home';
 
 export interface HouseUserResponse extends HouseMemberResponse {
     user: UserResponse;
@@ -77,50 +76,50 @@ export class ApiService {
 
     createUser(request: CreateUserRequest): Observable<UserResponse> {
         return this.http
-            .post<UserResponse>(`${API_BASE}/users`, request)
+            .post<UserResponse>(`${API_BASE_URL}/users`, request)
             .pipe(map((user) => this.normalizeUser(user)));
     }
 
     getUser(userId: number): Observable<UserResponse> {
         return this.http
-            .get<UserResponse>(`${API_BASE}/users/${userId}`)
+            .get<UserResponse>(`${API_BASE_URL}/users/${userId}`)
             .pipe(map((user) => this.normalizeUser(user)));
     }
 
     updateUser(userId: number, request: UpdateUserRequest): Observable<UserResponse> {
         return this.http
-            .put<UserResponse>(`${API_BASE}/users/${userId}`, request)
+            .put<UserResponse>(`${API_BASE_URL}/users/${userId}`, request)
             .pipe(map((user) => this.normalizeUser(user)));
     }
 
     updateUserImage(userId: number, request: UpdateUserImageRequest): Observable<UserResponse> {
         return this.http
-            .patch<UserResponse>(`${API_BASE}/users/${userId}/image`, request)
+            .patch<UserResponse>(`${API_BASE_URL}/users/${userId}/image`, request)
             .pipe(map((user) => this.normalizeUser(user)));
     }
 
     getAllHouses(): Observable<HouseResponse[]> {
-        return this.http.get<HouseResponse[]>(`${API_BASE}/houses`);
+        return this.http.get<HouseResponse[]>(`${API_BASE_URL}/houses`);
     }
 
     getHouse(houseId: number): Observable<HouseResponse> {
-        return this.http.get<HouseResponse>(`${API_BASE}/houses/${houseId}`);
+        return this.http.get<HouseResponse>(`${API_BASE_URL}/houses/${houseId}`);
     }
 
     createHouse(request: CreateHouseRequest): Observable<HouseResponse> {
-        return this.http.post<HouseResponse>(`${API_BASE}/houses`, request);
+        return this.http.post<HouseResponse>(`${API_BASE_URL}/houses`, request);
     }
 
     joinHouse(request: JoinHouseRequest): Observable<HouseMemberResponse> {
-        return this.http.post<HouseMemberResponse>(`${API_BASE}/houses/join`, request);
+        return this.http.post<HouseMemberResponse>(`${API_BASE_URL}/houses/join`, request);
     }
 
     getMembers(houseId: number): Observable<HouseMemberResponse[]> {
-        return this.http.get<HouseMemberResponse[]>(`${API_BASE}/houses/${houseId}/members`);
+        return this.http.get<HouseMemberResponse[]>(`${API_BASE_URL}/houses/${houseId}/members`);
     }
 
     addMember(houseId: number, request: AddMemberRequest): Observable<HouseMemberResponse> {
-        return this.http.post<HouseMemberResponse>(`${API_BASE}/houses/${houseId}/members`, request);
+        return this.http.post<HouseMemberResponse>(`${API_BASE_URL}/houses/${houseId}/members`, request);
     }
 
     updateMemberRole(
@@ -129,21 +128,21 @@ export class ApiService {
         request: UpdateMemberRoleRequest
     ): Observable<HouseMemberResponse> {
         return this.http.patch<HouseMemberResponse>(
-            `${API_BASE}/houses/${houseId}/members/${userId}/role`,
+            `${API_BASE_URL}/houses/${houseId}/members/${userId}/role`,
             request
         );
     }
 
     deleteMember(houseId: number, userId: number): Observable<void> {
         return this.http.delete<void>(
-            `${API_BASE}/houses/${houseId}/members/${userId}`
+            `${API_BASE_URL}/houses/${houseId}/members/${userId}`
         );
     }
 
     searchUsers(username: string): Observable<UserResponse[]> {
         const params = new HttpParams().set('username', username);
         return this.http
-            .get<UserResponse[]>(`${API_BASE}/users/search`, { params })
+            .get<UserResponse[]>(`${API_BASE_URL}/users/search`, { params })
             .pipe(map((users) => users.map((user) => this.normalizeUser(user))));
     }
 
@@ -170,39 +169,39 @@ export class ApiService {
 
     getTask(taskId: number): Observable<TaskResponse> {
         return this.http
-            .get<TaskResponse>(`${API_BASE}/tasks/${taskId}`)
+            .get<TaskResponse>(`${API_BASE_URL}/tasks/${taskId}`)
             .pipe(map((task) => this.normalizeTask(task)));
     }
 
     searchTasks(title: string): Observable<TaskSearchResult[]> {
         const params = new HttpParams().set('title', title);
-        return this.http.get<TaskSearchResult[]>(`${API_BASE}/tasks/search`, { params });
+        return this.http.get<TaskSearchResult[]>(`${API_BASE_URL}/tasks/search`, { params });
     }
 
     createTask(request: CreateTaskRequest): Observable<TaskResponse> {
         return this.http
-            .post<TaskResponse>(`${API_BASE}/tasks`, request)
+            .post<TaskResponse>(`${API_BASE_URL}/tasks`, request)
             .pipe(map((task) => this.normalizeTask(task)));
     }
 
     updateTask(taskId: number, request: UpdateTaskRequest): Observable<TaskResponse> {
         return this.http
-            .put<TaskResponse>(`${API_BASE}/tasks/${taskId}`, request)
+            .put<TaskResponse>(`${API_BASE_URL}/tasks/${taskId}`, request)
             .pipe(map((task) => this.normalizeTask(task)));
     }
 
     deleteTask(taskId: number): Observable<void> {
-        return this.http.delete<void>(`${API_BASE}/tasks/${taskId}`);
+        return this.http.delete<void>(`${API_BASE_URL}/tasks/${taskId}`);
     }
 
     toggleTaskActive(taskId: number, request: ToggleTaskActiveRequest): Observable<TaskResponse> {
         return this.http
-            .patch<TaskResponse>(`${API_BASE}/tasks/${taskId}/active`, request)
+            .patch<TaskResponse>(`${API_BASE_URL}/tasks/${taskId}/active`, request)
             .pipe(map((task) => this.normalizeTask(task)));
     }
 
     createTasks(request: CreateTasksRequest): Observable<CreateTasksResponse> {
-        return this.http.post<CreateTasksResponse>(`${API_BASE}/tasks/batch`, request).pipe(
+        return this.http.post<CreateTasksResponse>(`${API_BASE_URL}/tasks/batch`, request).pipe(
             map((response) => ({
                 ...response,
                 tasks: response.tasks.map((task) => this.normalizeTask(task)),
@@ -211,7 +210,7 @@ export class ApiService {
     }
 
     generateTaskInstances(request: GenerateTasksRequest): Observable<TaskInstanceResponse[]> {
-        return this.http.post<TaskInstanceResponse[]>(`${API_BASE}/tasks/generate`, request);
+        return this.http.post<TaskInstanceResponse[]>(`${API_BASE_URL}/tasks/generate`, request);
     }
 
     getHouseTasks(houseId: number, date?: string): Observable<TaskInstanceResponse[]> {
@@ -219,11 +218,11 @@ export class ApiService {
         if (date) {
             params = params.set('date', date);
         }
-        return this.http.get<TaskInstanceResponse[]>(`${API_BASE}/houses/${houseId}/tasks`, { params });
+        return this.http.get<TaskInstanceResponse[]>(`${API_BASE_URL}/houses/${houseId}/tasks`, { params });
     }
 
     getTodayTasks(houseId: number): Observable<TaskInstanceResponse[]> {
-        return this.http.get<TaskInstanceResponse[]>(`${API_BASE}/houses/${houseId}/tasks/today`);
+        return this.http.get<TaskInstanceResponse[]>(`${API_BASE_URL}/houses/${houseId}/tasks/today`);
     }
 
     completeTaskInstance(
@@ -231,14 +230,14 @@ export class ApiService {
         request: CompleteTaskInstanceRequest
     ): Observable<TaskInstanceResponse> {
         return this.http.post<TaskInstanceResponse>(
-            `${API_BASE}/task-instances/${taskInstanceId}/complete`,
+            `${API_BASE_URL}/task-instances/${taskInstanceId}/complete`,
             request
         );
     }
 
     uncompleteTaskInstance(taskInstanceId: number): Observable<TaskInstanceResponse> {
         return this.http.post<TaskInstanceResponse>(
-            `${API_BASE}/task-instances/${taskInstanceId}/uncomplete`,
+            `${API_BASE_URL}/task-instances/${taskInstanceId}/uncomplete`,
             {}
         );
     }
@@ -248,7 +247,7 @@ export class ApiService {
         request: AssignTaskInstanceRequest
     ): Observable<TaskInstanceResponse> {
         return this.http.patch<TaskInstanceResponse>(
-            `${API_BASE}/task-instances/${taskInstanceId}/assign`,
+            `${API_BASE_URL}/task-instances/${taskInstanceId}/assign`,
             request
         );
     }
@@ -262,7 +261,7 @@ export class ApiService {
             params = params.set('date', date);
         }
         return this.http
-            .get<DashboardResponse>(`${API_BASE}/dashboard`, { params })
+            .get<DashboardResponse>(`${API_BASE_URL}/dashboard`, { params })
             .pipe(map((dashboard) => this.normalizeDashboard(dashboard)));
     }
 
@@ -271,11 +270,11 @@ export class ApiService {
             .set('houseId', houseId.toString())
             .set('userId', userId.toString());
 
-        return this.http.get<DashboardPointsResponse>(`${API_BASE}/dashboard/points`, { params });
+        return this.http.get<DashboardPointsResponse>(`${API_BASE_URL}/dashboard/points`, { params });
     }
 
     validatePin(request: ValidatePinRequest): Observable<ValidatePinResponse> {
-        return this.http.post<ValidatePinResponse>(`${API_BASE}/auth/pin/validate`, request).pipe(
+        return this.http.post<ValidatePinResponse>(`${API_BASE_URL}/auth/pin/validate`, request).pipe(
             catchError((error: unknown) => {
                 const normalized = this.normalizeValidatePinError(
                     this.getErrorBody(error),
@@ -296,7 +295,7 @@ export class ApiService {
     }
 
     createPin(request: CreatePinRequest): Observable<CreatePinResponse> {
-        return this.http.post<CreatePinResponse>(`${API_BASE}/auth/pin`, request).pipe(
+        return this.http.post<CreatePinResponse>(`${API_BASE_URL}/auth/pin`, request).pipe(
             catchError((error: unknown) => {
                 const parsed = this.parseValidatePinErrorBody(this.getErrorBody(error));
                 return of({
@@ -453,17 +452,18 @@ export class ApiService {
         }
 
         if (trimmed.startsWith('/images/')) {
-            return `${API_BASE}${trimmed}`;
+            return `${API_BASE_URL}${trimmed}`;
         }
 
         if (trimmed.startsWith('images/')) {
-            return `${API_BASE}/${trimmed}`;
+            return `${API_BASE_URL}/${trimmed}`;
         }
 
         if (trimmed.startsWith('/')) {
-            return `${API_BASE}/images${trimmed}`;
+            return `${API_BASE_URL}/images${trimmed}`;
         }
 
-        return `${API_BASE}/images/${trimmed}`;
+        return `${API_BASE_URL}/images/${trimmed}`;
     }
 }
+
